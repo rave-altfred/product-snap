@@ -254,35 +254,47 @@ test_ssh_connection() {
     fi
 }
 
-# Helper function to execute SSH commands (uses doctl when available)
+# Helper function to execute SSH commands using doctl
 exec_ssh() {
     local cmd="$1"
     if [[ -n "$DROPLET_NAME" ]]; then
         doctl compute ssh "$DROPLET_NAME" --ssh-command "$cmd"
     else
+        # Fallback to direct SSH if only IP is provided
         ssh -i "$SSH_KEY" -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$DROPLET_HOST" "$cmd"
     fi
 }
 
-# Helper function for file transfers (uses doctl when available)
+# Helper function for file transfers using SSH with doctl
 exec_scp() {
     local local_path="$1"
     local remote_path="$2"
     local recursive_flag="$3"
     
     if [[ -n "$DROPLET_NAME" ]]; then
-        # Use doctl compute scp
+        # For simple files, we can use base64 encoding through SSH
         if [[ "$recursive_flag" == "-r" ]]; then
-            doctl compute scp --recursive "$local_path" "$DROPLET_NAME:$remote_path"
+            error "Recursive directory transfer not supported with doctl. Use individual files."
+            exit 1
         else
-            doctl compute scp "$local_path" "$DROPLET_NAME:$remote_path"
+            # Transfer file using base64 encoding through SSH
+            local filename=$(basename "$local_path")
+            local target_dir=$(dirname "$remote_path")
+            local target_file="$remote_path"
+            if [[ "$remote_path" == */ ]]; then
+                target_file="${remote_path}${filename}"
+            fi
+            
+            # Create target directory and transfer file
+            doctl compute ssh "$DROPLET_NAME" --ssh-command "mkdir -p $target_dir"
+            base64 < "$local_path" | doctl compute ssh "$DROPLET_NAME" --ssh-command "base64 -d > $target_file"
         fi
     else
-        # Use traditional scp
+        # Fallback to traditional scp
         if [[ "$recursive_flag" == "-r" ]]; then
-            scp -i "$SSH_KEY" -P "$SSH_PORT" -r "$local_path" "$SSH_USER@$DROPLET_HOST:$remote_path"
+            scp -i "$SSH_KEY" -P "$SSH_PORT" -o StrictHostKeyChecking=no -r "$local_path" "$SSH_USER@$DROPLET_HOST:$remote_path"
         else
-            scp -i "$SSH_KEY" -P "$SSH_PORT" "$local_path" "$SSH_USER@$DROPLET_HOST:$remote_path"
+            scp -i "$SSH_KEY" -P "$SSH_PORT" -o StrictHostKeyChecking=no "$local_path" "$SSH_USER@$DROPLET_HOST:$remote_path"
         fi
     fi
 }
@@ -333,54 +345,83 @@ build_images() {
     docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | grep "$REGISTRY"
 }
 
-# Save images to tar files for transfer
-save_images() {
-    log "Saving images to tar files..."
-
-    local tar_dir="./build/images"
-    execute mkdir -p "$tar_dir"
-
-    execute docker save "${BACKEND_IMAGE}:${BUILD_TAG}" "${BACKEND_IMAGE}:latest" \
-        | gzip > "${tar_dir}/backend-${BUILD_TAG}.tar.gz"
-    success "Backend image saved"
-
-    execute docker save "${FRONTEND_IMAGE}:${BUILD_TAG}" "${FRONTEND_IMAGE}:latest" \
-        | gzip > "${tar_dir}/frontend-${BUILD_TAG}.tar.gz"
-    success "Frontend image saved"
+# Ensure Docker is installed on droplet
+setup_droplet() {
+    log "Setting up droplet environment..."
+    
+    # Create deployment directory
+    execute exec_ssh "mkdir -p ${DEPLOYMENT_DIR}"
+    
+    # Check if Docker is installed
+    if execute exec_ssh "command -v docker >/dev/null 2>&1"; then
+        success "Docker is already installed"
+    else
+        log "Installing Docker on droplet..."
+        execute exec_ssh "curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh && rm get-docker.sh"
+        execute exec_ssh "systemctl enable docker && systemctl start docker"
+        execute exec_ssh "usermod -aG docker root" # Add root to docker group
+        success "Docker installed successfully"
+    fi
+    
+    # Check if Docker Compose is installed
+    if execute exec_ssh "command -v docker-compose >/dev/null 2>&1"; then
+        success "Docker Compose is already installed"
+    else
+        log "Installing Docker Compose on droplet..."
+        execute exec_ssh "curl -L \"https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
+        execute exec_ssh "chmod +x /usr/local/bin/docker-compose"
+        execute exec_ssh "ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose"
+        success "Docker Compose installed successfully"
+    fi
 }
 
-# Transfer files to droplet
-transfer_to_droplet() {
-    log "Transferring files to droplet..."
+# Stream Docker images directly to droplet
+stream_images_to_droplet() {
+    log "Streaming Docker images directly to droplet..."
 
-    # Create deployment directory on droplet
-    execute exec_ssh "mkdir -p ${DEPLOYMENT_DIR}/{images,backup}"
+    log "Streaming backend image (this may take a while)..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY RUN] docker save ${BACKEND_IMAGE}:${BUILD_TAG} ${BACKEND_IMAGE}:latest | gzip | doctl compute ssh $DROPLET_NAME --ssh-command 'gunzip | docker load'"
+    else
+        docker save "${BACKEND_IMAGE}:${BUILD_TAG}" "${BACKEND_IMAGE}:latest" | gzip | \
+            doctl compute ssh "$DROPLET_NAME" --ssh-command "gunzip | docker load"
+    fi
+    success "Backend image streamed"
 
-    # Transfer image archives
-    log "Transferring backend image (this may take a while)..."
-    execute exec_scp "./build/images/backend-${BUILD_TAG}.tar.gz" "${DEPLOYMENT_DIR}/images/"
+    log "Streaming frontend image..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY RUN] docker save ${FRONTEND_IMAGE}:${BUILD_TAG} ${FRONTEND_IMAGE}:latest | gzip | doctl compute ssh $DROPLET_NAME --ssh-command 'gunzip | docker load'"
+    else
+        docker save "${FRONTEND_IMAGE}:${BUILD_TAG}" "${FRONTEND_IMAGE}:latest" | gzip | \
+            doctl compute ssh "$DROPLET_NAME" --ssh-command "gunzip | docker load"
+    fi
+    success "Frontend image streamed"
+}
 
-    log "Transferring frontend image..."
-    execute exec_scp "./build/images/frontend-${BUILD_TAG}.tar.gz" "${DEPLOYMENT_DIR}/images/"
+# Transfer configuration files to droplet
+transfer_config_to_droplet() {
+    log "Transferring configuration files to droplet..."
 
     # Transfer docker-compose files
-    log "Transferring configuration files..."
-    execute exec_scp "docker-compose.yml" "${DEPLOYMENT_DIR}/"
-    execute exec_scp "docker-compose.prod.yml" "${DEPLOYMENT_DIR}/"
+    log "Transferring docker-compose files..."
+    execute exec_scp "docker-compose.yml" "${DEPLOYMENT_DIR}/docker-compose.yml"
+    execute exec_scp "docker-compose.prod.yml" "${DEPLOYMENT_DIR}/docker-compose.prod.yml"
 
     # Transfer .env if it exists (but warn about security)
-    if [[ -f ../.env ]]; then
+    if [[ -f .env ]]; then
         warning "Transferring .env file. Ensure it contains production values!"
-        execute exec_scp "../.env" "${DEPLOYMENT_DIR}/.env"
+        execute exec_scp ".env" "${DEPLOYMENT_DIR}/.env"
     else
         warning ".env file not found. You'll need to configure it on the droplet."
     fi
 
-    # Transfer nginx config
+    # Transfer nginx config files individually (since recursive not supported)
     log "Transferring nginx configuration..."
-    execute exec_scp "../nginx/" "${DEPLOYMENT_DIR}/" "-r"
+    execute exec_ssh "mkdir -p ${DEPLOYMENT_DIR}/nginx/conf.d"
+    execute exec_scp "nginx/nginx.conf" "${DEPLOYMENT_DIR}/nginx/nginx.conf"
+    execute exec_scp "nginx/conf.d/default.conf" "${DEPLOYMENT_DIR}/nginx/conf.d/default.conf"
 
-    success "Files transferred successfully"
+    success "Configuration files transferred successfully"
 }
 
 # Deploy on droplet
@@ -397,9 +438,7 @@ BUILD_TAG="$1"
 
 cd "$DEPLOYMENT_DIR"
 
-echo "Loading Docker images..."
-docker load < "images/backend-${BUILD_TAG}.tar.gz"
-docker load < "images/frontend-${BUILD_TAG}.tar.gz"
+echo "Docker images already loaded via streaming"
 
 echo "Running database migrations..."
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm backend alembic upgrade head || {
@@ -443,15 +482,6 @@ DEPLOY_SCRIPT
     success "Deployment completed!"
 }
 
-# Cleanup local build artifacts
-cleanup_local() {
-    log "Cleaning up local build artifacts..."
-    
-    if [[ "$DRY_RUN" == "false" ]]; then
-        rm -rf ./build/images/*.tar.gz
-        success "Local cleanup completed"
-    fi
-}
 
 # Cleanup old Docker images locally (keep only latest)
 cleanup_local_images() {
@@ -500,10 +530,18 @@ show_summary() {
     echo -e "API Docs:        ${GREEN}https://$DROPLET_HOST/api/docs${NC}"
     echo ""
     echo "To view logs:"
-    echo "  ssh -i $SSH_KEY $SSH_USER@$DROPLET_HOST 'cd $DEPLOYMENT_DIR && docker-compose logs -f'"
+    if [[ -n "$DROPLET_NAME" ]]; then
+        echo "  doctl compute ssh $DROPLET_NAME --ssh-command 'cd $DEPLOYMENT_DIR && docker-compose logs -f'"
+    else
+        echo "  ssh -i $SSH_KEY $SSH_USER@$DROPLET_HOST 'cd $DEPLOYMENT_DIR && docker-compose logs -f'"
+    fi
     echo ""
     echo "To restart services:"
-    echo "  ssh -i $SSH_KEY $SSH_USER@$DROPLET_HOST 'cd $DEPLOYMENT_DIR && docker-compose restart'"
+    if [[ -n "$DROPLET_NAME" ]]; then
+        echo "  doctl compute ssh $DROPLET_NAME --ssh-command 'cd $DEPLOYMENT_DIR && docker-compose restart'"
+    else
+        echo "  ssh -i $SSH_KEY $SSH_USER@$DROPLET_HOST 'cd $DEPLOYMENT_DIR && docker-compose restart'"
+    fi
     echo "═══════════════════════════════════════════════════════════"
 }
 
@@ -521,19 +559,19 @@ main() {
     parse_args "$@"
     check_prerequisites
     test_ssh_connection
+    setup_droplet
 
     # Build phase
     if [[ "$SKIP_BUILD" == "false" ]]; then
         build_images
-        save_images
+        stream_images_to_droplet
     fi
 
     # Deploy phase
-    transfer_to_droplet
+    transfer_config_to_droplet
     deploy_on_droplet
 
     # Cleanup phase
-    cleanup_local
     cleanup_local_images
 
     # Summary
