@@ -19,6 +19,7 @@
 #
 # Options:
 #   -h, --host      Droplet IP or hostname (required)
+#   -n, --name      Droplet name (will resolve to IP automatically)
 #   -u, --user      SSH user (default: root)
 #   -p, --port      SSH port (default: 22)
 #   -k, --key       SSH key path (default: ~/.ssh/id_rsa)
@@ -27,8 +28,9 @@
 #   --dry-run       Show commands without executing
 #   --help          Show this help message
 #
-# Example:
+# Examples:
 #   ./build-and-deploy.sh --host 123.45.67.89 --user productsnap
+#   ./build-and-deploy.sh --name product-snap-dev
 #
 ################################################################################
 
@@ -50,6 +52,7 @@ USE_CACHE="true"
 SKIP_BUILD="false"
 DRY_RUN="false"
 DROPLET_HOST=""
+DROPLET_NAME=""
 
 # Project configuration
 PROJECT_NAME="productsnap"
@@ -84,12 +87,43 @@ show_help() {
     exit 0
 }
 
+# Resolve droplet name to IP address using doctl
+resolve_droplet_ip() {
+    local droplet_name="$1"
+    log "Resolving droplet name '$droplet_name' to IP address..."
+    
+    # Check if doctl is installed
+    if ! command -v doctl &> /dev/null; then
+        error "doctl CLI is not installed. Please install it to use --name option."
+        echo "Install with: brew install doctl"
+        exit 1
+    fi
+    
+    # Get droplet IP
+    local droplet_ip
+    droplet_ip=$(doctl compute droplet list --format Name,PublicIPv4 --no-header | grep "^${droplet_name}" | awk '{print $2}')
+    
+    if [[ -z "$droplet_ip" ]]; then
+        error "Could not find droplet with name: $droplet_name"
+        echo "Available droplets:"
+        doctl compute droplet list --format Name,PublicIPv4
+        exit 1
+    fi
+    
+    success "Resolved '$droplet_name' to IP: $droplet_ip"
+    echo "$droplet_ip"
+}
+
 # Parse command line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--host)
                 DROPLET_HOST="$2"
+                shift 2
+                ;;
+            -n|--name)
+                DROPLET_NAME="$2"
                 shift 2
                 ;;
             -u|--user)
@@ -127,11 +161,23 @@ parse_args() {
         esac
     done
 
-    # Validate required arguments
-    if [[ -z "$DROPLET_HOST" ]]; then
-        error "Droplet host is required. Use --host option."
-        echo "Example: $0 --host 123.45.67.89"
+    # Validate required arguments - either host or name must be provided
+    if [[ -z "$DROPLET_HOST" && -z "$DROPLET_NAME" ]]; then
+        error "Either droplet host or name is required."
+        echo "Examples:"
+        echo "  $0 --host 123.45.67.89"
+        echo "  $0 --name product-snap-dev"
         exit 1
+    fi
+    
+    if [[ -n "$DROPLET_HOST" && -n "$DROPLET_NAME" ]]; then
+        error "Cannot specify both --host and --name options. Use one or the other."
+        exit 1
+    fi
+    
+    # Resolve droplet name to IP if name was provided
+    if [[ -n "$DROPLET_NAME" ]]; then
+        DROPLET_HOST=$(resolve_droplet_ip "$DROPLET_NAME")
     fi
 
     # Validate SSH key exists
@@ -179,16 +225,65 @@ check_prerequisites() {
     success "Prerequisites check passed"
 }
 
-# Test SSH connection
+# Test SSH connection using doctl
 test_ssh_connection() {
     log "Testing SSH connection to $DROPLET_HOST..."
     
-    if execute ssh -i "$SSH_KEY" -p "$SSH_PORT" -o ConnectTimeout=10 \
-        -o StrictHostKeyChecking=no "$SSH_USER@$DROPLET_HOST" "echo 'SSH connection successful'" &> /dev/null; then
-        success "SSH connection successful"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY RUN] doctl compute ssh $DROPLET_NAME --ssh-command 'echo SSH connection successful'"
+        return 0
+    fi
+    
+    # Use doctl if we have a droplet name, otherwise fall back to manual SSH
+    if [[ -n "$DROPLET_NAME" ]]; then
+        if doctl compute ssh "$DROPLET_NAME" --ssh-command "echo 'SSH connection successful'" &> /dev/null; then
+            success "SSH connection successful via doctl"
+        else
+            error "Cannot connect to droplet '$DROPLET_NAME' via doctl"
+            exit 1
+        fi
     else
-        error "Cannot connect to droplet via SSH"
-        exit 1
+        # Fallback to manual SSH for IP addresses
+        if ssh -i "$SSH_KEY" -p "$SSH_PORT" -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=no "$SSH_USER@$DROPLET_HOST" "echo 'SSH connection successful'" &> /dev/null; then
+            success "SSH connection successful"
+        else
+            error "Cannot connect to droplet via SSH"
+            exit 1
+        fi
+    fi
+}
+
+# Helper function to execute SSH commands (uses doctl when available)
+exec_ssh() {
+    local cmd="$1"
+    if [[ -n "$DROPLET_NAME" ]]; then
+        doctl compute ssh "$DROPLET_NAME" --ssh-command "$cmd"
+    else
+        ssh -i "$SSH_KEY" -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$DROPLET_HOST" "$cmd"
+    fi
+}
+
+# Helper function for file transfers (uses doctl when available)
+exec_scp() {
+    local local_path="$1"
+    local remote_path="$2"
+    local recursive_flag="$3"
+    
+    if [[ -n "$DROPLET_NAME" ]]; then
+        # Use doctl compute scp
+        if [[ "$recursive_flag" == "-r" ]]; then
+            doctl compute scp --recursive "$local_path" "$DROPLET_NAME:$remote_path"
+        else
+            doctl compute scp "$local_path" "$DROPLET_NAME:$remote_path"
+        fi
+    else
+        # Use traditional scp
+        if [[ "$recursive_flag" == "-r" ]]; then
+            scp -i "$SSH_KEY" -P "$SSH_PORT" -r "$local_path" "$SSH_USER@$DROPLET_HOST:$remote_path"
+        else
+            scp -i "$SSH_KEY" -P "$SSH_PORT" "$local_path" "$SSH_USER@$DROPLET_HOST:$remote_path"
+        fi
     fi
 }
 
@@ -259,42 +354,31 @@ transfer_to_droplet() {
     log "Transferring files to droplet..."
 
     # Create deployment directory on droplet
-    execute ssh -i "$SSH_KEY" -p "$SSH_PORT" "$SSH_USER@$DROPLET_HOST" \
-        "mkdir -p ${DEPLOYMENT_DIR}/{images,backup}"
+    execute exec_ssh "mkdir -p ${DEPLOYMENT_DIR}/{images,backup}"
 
     # Transfer image archives
     log "Transferring backend image (this may take a while)..."
-    execute scp -i "$SSH_KEY" -P "$SSH_PORT" \
-        "./build/images/backend-${BUILD_TAG}.tar.gz" \
-        "$SSH_USER@$DROPLET_HOST:${DEPLOYMENT_DIR}/images/"
+    execute exec_scp "./build/images/backend-${BUILD_TAG}.tar.gz" "${DEPLOYMENT_DIR}/images/"
 
     log "Transferring frontend image..."
-    execute scp -i "$SSH_KEY" -P "$SSH_PORT" \
-        "./build/images/frontend-${BUILD_TAG}.tar.gz" \
-        "$SSH_USER@$DROPLET_HOST:${DEPLOYMENT_DIR}/images/"
+    execute exec_scp "./build/images/frontend-${BUILD_TAG}.tar.gz" "${DEPLOYMENT_DIR}/images/"
 
     # Transfer docker-compose files
     log "Transferring configuration files..."
-    execute scp -i "$SSH_KEY" -P "$SSH_PORT" \
-        docker-compose.yml \
-        docker-compose.prod.yml \
-        "$SSH_USER@$DROPLET_HOST:${DEPLOYMENT_DIR}/"
+    execute exec_scp "docker-compose.yml" "${DEPLOYMENT_DIR}/"
+    execute exec_scp "docker-compose.prod.yml" "${DEPLOYMENT_DIR}/"
 
     # Transfer .env if it exists (but warn about security)
-    if [[ -f .env ]]; then
+    if [[ -f ../.env ]]; then
         warning "Transferring .env file. Ensure it contains production values!"
-        execute scp -i "$SSH_KEY" -P "$SSH_PORT" \
-            .env \
-            "$SSH_USER@$DROPLET_HOST:${DEPLOYMENT_DIR}/"
+        execute exec_scp "../.env" "${DEPLOYMENT_DIR}/.env"
     else
         warning ".env file not found. You'll need to configure it on the droplet."
     fi
 
     # Transfer nginx config
     log "Transferring nginx configuration..."
-    execute scp -i "$SSH_KEY" -P "$SSH_PORT" -r \
-        nginx/ \
-        "$SSH_USER@$DROPLET_HOST:${DEPLOYMENT_DIR}/"
+    execute exec_scp "../nginx/" "${DEPLOYMENT_DIR}/" "-r"
 
     success "Files transferred successfully"
 }
@@ -349,9 +433,12 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
 DEPLOY_SCRIPT
 )
 
-    # Execute deployment on droplet
-    execute ssh -i "$SSH_KEY" -p "$SSH_PORT" "$SSH_USER@$DROPLET_HOST" \
-        "bash -s $BUILD_TAG" <<< "$deploy_script"
+    # Execute deployment on droplet  
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY RUN] Executing deployment script on droplet"
+    else
+        echo "$deploy_script" | exec_ssh "bash -s $BUILD_TAG"
+    fi
 
     success "Deployment completed!"
 }
