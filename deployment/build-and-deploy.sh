@@ -218,9 +218,10 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Enable BuildKit
+    # Enable BuildKit and force AMD64 platform
     export DOCKER_BUILDKIT=1
     export COMPOSE_DOCKER_CLI_BUILD=1
+    export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
     success "Prerequisites check passed"
 }
@@ -317,6 +318,7 @@ build_images() {
     # Build backend image
     log "Building backend image..."
     execute docker build $cache_flag \
+        --platform linux/amd64 \
         --target production \
         --tag "${BACKEND_IMAGE}:${BUILD_TAG}" \
         --tag "${BACKEND_IMAGE}:latest" \
@@ -330,6 +332,7 @@ build_images() {
     # Build frontend image
     log "Building frontend image..."
     execute docker build $cache_flag \
+        --platform linux/amd64 \
         --target production \
         --tag "${FRONTEND_IMAGE}:${BUILD_TAG}" \
         --tag "${FRONTEND_IMAGE}:latest" \
@@ -450,7 +453,10 @@ if docker-compose ps | grep -q "Up"; then
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml down --timeout 30
 fi
 
-echo "Starting services..."
+echo "Stopping existing services..."
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml down || true
+
+echo "Starting services with new images..."
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 echo "Waiting for services to be healthy..."
