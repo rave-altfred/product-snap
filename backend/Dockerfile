@@ -4,6 +4,7 @@ FROM python:3.11-slim as base
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user in base

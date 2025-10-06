@@ -119,6 +119,11 @@ services:
       # Redis
       REDIS_URL: redis://redis:6379/0
       
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      
       # External APIs
       NANO_BANANA_API_KEY: ${NANO_BANANA_API_KEY}
       
@@ -128,6 +133,20 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
       S3_REGION: ${S3_REGION:-us-east-1}
+      
+      # PayPal
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
+      PAYPAL_PLAN_ID_PERSONAL: ${PAYPAL_PLAN_ID_PERSONAL}
+      PAYPAL_PLAN_ID_PRO: ${PAYPAL_PLAN_ID_PRO}
+      
+      # Email/SMTP
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
       
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
