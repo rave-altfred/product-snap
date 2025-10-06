@@ -19,6 +19,11 @@ export default function Login() {
 
     try {
       const { data } = await authApi.login({ email, password })
+      
+      // Store tokens first so userApi.getMe() can use them
+      localStorage.setItem('access_token', data.access_token)
+      localStorage.setItem('refresh_token', data.refresh_token)
+      
       const { data: userData } = await userApi.getMe()
       
       login(data.access_token, data.refresh_token, userData)
