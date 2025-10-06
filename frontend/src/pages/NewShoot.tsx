@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Camera, Image as ImageIcon, Wand2 } from 'lucide-react'
+import { Upload, Camera, Image as ImageIcon, Wand2, X } from 'lucide-react'
 import { jobsApi } from '../lib/api'
 
 type JobMode = 'STUDIO_WHITE' | 'MODEL_TRYON' | 'LIFESTYLE_SCENE'
@@ -40,8 +40,21 @@ export default function NewShoot() {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showCamera, setShowCamera] = useState(false)
+  const [stream, setStream] = useState<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const navigate = useNavigate()
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [stream])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -126,6 +139,70 @@ export default function NewShoot() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+    stopCamera()
+  }
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'environment' // Use back camera on mobile
+        } 
+      })
+      
+      setStream(mediaStream)
+      setShowCamera(true)
+      setError('')
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream
+      }
+    } catch (err) {
+      setError('Could not access camera. Please check permissions.')
+      console.error('Camera error:', err)
+    }
+  }
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setShowCamera(false)
+  }
+
+  const takePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+    
+    if (!context) return
+    
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    
+    // Draw the video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    // Convert canvas to blob
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      
+      // Create a file from the blob
+      const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      })
+      
+      setSelectedFile(file)
+      setPreviewUrl(canvas.toDataURL('image/jpeg', 0.9))
+      stopCamera()
+    }, 'image/jpeg', 0.9)
   }
 
   return (
@@ -135,18 +212,64 @@ export default function NewShoot() {
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Image Upload */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Upload Product Image</h2>
+          <h2 className="text-xl font-semibold mb-4">Capture or Upload Product Image</h2>
           
-          {!selectedFile ? (
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-primary-500 transition-colors cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-            >
-              <Upload size={48} className="mx-auto mb-4 text-gray-400" />
-              <p className="text-lg mb-2">Drop your image here or click to browse</p>
-              <p className="text-sm text-gray-500">Supports JPG, PNG, WebP up to 10MB</p>
+          {showCamera ? (
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full max-h-96 rounded-lg bg-black"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+              
+              <div className="absolute top-4 right-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  title="Close camera"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                <button
+                  type="button"
+                  onClick={takePhoto}
+                  className="w-16 h-16 bg-white border-4 border-gray-300 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center"
+                  title="Take photo"
+                >
+                  <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
+                </button>
+              </div>
+            </div>
+          ) : !selectedFile ? (
+            <div className="space-y-4">
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-primary-500 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+              >
+                <Upload size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-lg mb-2">Drop your image here or click to browse</p>
+                <p className="text-sm text-gray-500">Supports JPG, PNG, WebP up to 10MB</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-gray-500 mb-3">or</div>
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="btn btn-secondary inline-flex items-center gap-2"
+                >
+                  <Camera size={20} />
+                  Take Photo with Camera
+                </button>
+              </div>
             </div>
           ) : (
             <div className="relative">
