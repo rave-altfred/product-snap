@@ -1,10 +1,13 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { LogOut, Camera, FolderOpen, CreditCard, User } from 'lucide-react'
+import { LogOut, Camera, FolderOpen, CreditCard, User, Home } from 'lucide-react'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  const isActive = (path: string) => location.pathname === path
 
   const handleLogout = () => {
     logout()
@@ -16,13 +19,31 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200">
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-primary-600">ProductSnap</h1>
+          <Link to="/dashboard" className="block">
+            <h1 className="text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors">ProductSnap</h1>
+          </Link>
         </div>
         
         <nav className="px-4 space-y-2">
           <Link
+            to="/dashboard"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive('/dashboard') 
+                ? 'bg-primary-100 text-primary-700' 
+                : 'hover:bg-gray-100'
+            }`}
+          >
+            <Home size={20} />
+            <span>Dashboard</span>
+          </Link>
+          
+          <Link
             to="/new-shoot"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive('/new-shoot') 
+                ? 'bg-primary-100 text-primary-700' 
+                : 'hover:bg-gray-100'
+            }`}
           >
             <Camera size={20} />
             <span>New Shoot</span>
@@ -30,7 +51,11 @@ export default function Layout() {
           
           <Link
             to="/library"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive('/library') 
+                ? 'bg-primary-100 text-primary-700' 
+                : 'hover:bg-gray-100'
+            }`}
           >
             <FolderOpen size={20} />
             <span>Library</span>
@@ -38,7 +63,11 @@ export default function Layout() {
           
           <Link
             to="/billing"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive('/billing') 
+                ? 'bg-primary-100 text-primary-700' 
+                : 'hover:bg-gray-100'
+            }`}
           >
             <CreditCard size={20} />
             <span>Billing</span>
@@ -46,7 +75,11 @@ export default function Layout() {
           
           <Link
             to="/account"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive('/account') 
+                ? 'bg-primary-100 text-primary-700' 
+                : 'hover:bg-gray-100'
+            }`}
           >
             <User size={20} />
             <span>Account</span>
