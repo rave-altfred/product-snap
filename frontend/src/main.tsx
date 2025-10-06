@@ -5,6 +5,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
 
+// Dark mode detection
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.documentElement.classList.add('dark')
+} else {
+  document.documentElement.classList.remove('dark')
+}
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addListener((e) => {
+  if (e.matches) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

@@ -249,18 +249,18 @@ export default function NewShoot() {
           ) : !selectedFile ? (
             <div className="space-y-4">
               <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-12 text-center hover:border-primary-500 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 sm:p-12 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
               >
-                <Upload size={36} className="sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-base sm:text-lg mb-2">Drop your image here or click to browse</p>
-                <p className="text-xs sm:text-sm text-gray-500">Supports JPG, PNG, WebP up to 10MB</p>
+                <Upload size={36} className="sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
+                <p className="text-base sm:text-lg mb-2 text-gray-900 dark:text-gray-100">Drop your image here or click to browse</p>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Supports JPG, PNG, WebP up to 10MB</p>
               </div>
               
               <div className="text-center">
-                <div className="text-gray-500 mb-3">or</div>
+                <div className="text-gray-500 dark:text-gray-400 mb-3">or</div>
                 <button
                   type="button"
                   onClick={startCamera}
@@ -313,15 +313,15 @@ export default function NewShoot() {
                 onClick={() => setSelectedMode(mode.id)}
                 className={`p-4 border rounded-lg text-left transition-colors ${
                   selectedMode === mode.id
-                    ? 'border-primary-500 bg-primary-50 text-primary-700'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
                 }`}
               >
                 <div className="flex items-center gap-3 mb-2">
                   {mode.icon}
                   <h3 className="font-medium">{mode.name}</h3>
                 </div>
-                <p className="text-sm text-gray-600">{mode.description}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{mode.description}</p>
               </button>
             ))}
           </div>
@@ -334,15 +334,15 @@ export default function NewShoot() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe any specific requirements or styling preferences..."
-            className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full h-24 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             maxLength={500}
           />
-          <p className="text-sm text-gray-500 mt-2">{prompt.length}/500 characters</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{prompt.length}/500 characters</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-500 text-red-700 dark:text-red-400 px-4 py-3 rounded">
             {error}
           </div>
         )}

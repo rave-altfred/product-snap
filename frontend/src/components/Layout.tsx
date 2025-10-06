@@ -28,16 +28,16 @@ export default function Layout() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile Header */}
-      <header className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
+      <header className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           <Link to="/dashboard" onClick={closeMobileMenu}>
-            <h1 className="text-xl font-bold text-primary-600">ProductSnap</h1>
+            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">ProductSnap</h1>
           </Link>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -47,10 +47,10 @@ export default function Layout() {
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-gray-200">
+        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <div className="p-6">
             <Link to="/dashboard">
-              <h1 className="text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors">ProductSnap</h1>
+              <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">ProductSnap</h1>
             </Link>
           </div>
           
@@ -63,8 +63,8 @@ export default function Layout() {
                   to={item.to}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive(item.to) 
-                      ? 'bg-primary-100 text-primary-700' 
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   <Icon size={20} />
@@ -74,15 +74,15 @@ export default function Layout() {
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || user?.email}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.full_name || user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="ml-3 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="ml-3 p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Logout"
               >
                 <LogOut size={18} />
@@ -98,10 +98,10 @@ export default function Layout() {
               className="fixed inset-0 bg-black bg-opacity-50" 
               onClick={closeMobileMenu}
             />
-            <div className="fixed top-0 left-0 w-80 max-w-xs h-full bg-white shadow-xl">
+            <div className="fixed top-0 left-0 w-80 max-w-xs h-full bg-white dark:bg-gray-800 shadow-xl">
               <div className="p-6">
                 <Link to="/dashboard" onClick={closeMobileMenu}>
-                  <h1 className="text-2xl font-bold text-primary-600">ProductSnap</h1>
+                  <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">ProductSnap</h1>
                 </Link>
               </div>
               
@@ -115,8 +115,8 @@ export default function Layout() {
                       onClick={closeMobileMenu}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                         isActive(item.to) 
-                          ? 'bg-primary-100 text-primary-700' 
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                       }`}
                     >
                       <Icon size={20} />
@@ -126,15 +126,15 @@ export default function Layout() {
                 })}
               </nav>
 
-              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || user?.email}</p>
-                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.full_name || user?.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="ml-3 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="ml-3 p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     title="Logout"
                   >
                     <LogOut size={18} />
@@ -147,7 +147,7 @@ export default function Layout() {
 
         {/* Main content */}
         <main className="flex-1 lg:pl-64">
-          <div className="min-h-screen">
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <Outlet />
           </div>
         </main>

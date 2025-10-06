@@ -37,7 +37,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="max-w-md w-full card">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">Create Account</h2>
         
