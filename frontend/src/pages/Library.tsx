@@ -97,27 +97,27 @@ export default function Library() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Library</h1>
-        <Link to="/new-shoot" className="btn btn-primary">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">Library</h1>
+        <Link to="/new-shoot" className="btn btn-primary w-full sm:w-auto text-center">
           New Shoot
         </Link>
       </div>
       
       {jobs.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-8 sm:py-12">
           <div className="text-gray-400 mb-4">
-            <Clock size={64} className="mx-auto mb-4" />
-            <p className="text-xl mb-2">No jobs yet</p>
-            <p className="text-gray-600">Create your first product shoot to get started.</p>
+            <Clock size={48} className="sm:w-16 sm:h-16 mx-auto mb-4" />
+            <p className="text-lg sm:text-xl mb-2">No jobs yet</p>
+            <p className="text-sm sm:text-base text-gray-600 px-4">Create your first product shoot to get started.</p>
           </div>
-          <Link to="/new-shoot" className="btn btn-primary">
+          <Link to="/new-shoot" className="btn btn-primary w-full sm:w-auto max-w-xs mx-auto block sm:inline-block">
             Create New Shoot
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {jobs.map((job) => (
             <div key={job.id} className="card hover:shadow-lg transition-shadow">
               <div className="relative">
@@ -187,12 +187,12 @@ export default function Library() {
                           key={index}
                           src={url}
                           alt={`Result ${index + 1}`}
-                          className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-75"
+                          className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded border cursor-pointer hover:opacity-75"
                           onClick={() => window.open(url, '_blank')}
                         />
                       ))}
                       {job.result_urls.length > 3 && (
-                        <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-500">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-500">
                           +{job.result_urls.length - 3}
                         </div>
                       )}

@@ -206,13 +206,13 @@ export default function NewShoot() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">New Shoot</h1>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">New Shoot</h1>
       
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
         {/* Image Upload */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Capture or Upload Product Image</h2>
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Capture or Upload Product Image</h2>
           
           {showCamera ? (
             <div className="relative">
@@ -249,14 +249,14 @@ export default function NewShoot() {
           ) : !selectedFile ? (
             <div className="space-y-4">
               <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-primary-500 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-12 text-center hover:border-primary-500 transition-colors cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
               >
-                <Upload size={48} className="mx-auto mb-4 text-gray-400" />
-                <p className="text-lg mb-2">Drop your image here or click to browse</p>
-                <p className="text-sm text-gray-500">Supports JPG, PNG, WebP up to 10MB</p>
+                <Upload size={36} className="sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-base sm:text-lg mb-2">Drop your image here or click to browse</p>
+                <p className="text-xs sm:text-sm text-gray-500">Supports JPG, PNG, WebP up to 10MB</p>
               </div>
               
               <div className="text-center">
@@ -304,8 +304,8 @@ export default function NewShoot() {
 
         {/* Mode Selection */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Choose Render Mode</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Choose Render Mode</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {modes.map((mode) => (
               <button
                 key={mode.id}
@@ -329,7 +329,7 @@ export default function NewShoot() {
 
         {/* Prompt Input */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Custom Prompt (Optional)</h2>
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Custom Prompt (Optional)</h2>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -348,11 +348,11 @@ export default function NewShoot() {
         )}
 
         {/* Submit Button */}
-        <div className="flex justify-end">
+        <div className="flex justify-center sm:justify-end">
           <button
             type="submit"
             disabled={!selectedFile || loading}
-            className="btn btn-primary px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary w-full sm:w-auto px-6 sm:px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating Job...' : 'Create Shoot'}
           </button>
