@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 import uuid
+from PIL import Image
+import io
 
 from app.core.database import get_db
 from app.core.redis_client import get_redis_client
+from app.core.config import settings
 from app.models import Job, JobMode, JobStatus, User, Subscription
 from app.services.storage_service import storage_service
 from app.services.rate_limit_service import RateLimitService
@@ -30,11 +33,68 @@ async def create_job(
     redis_client: redis.Redis = Depends(get_redis_client)
 ):
     """Create a new image generation job."""
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+    # Read file content for validation
+    file_content = await file.read()
+    
+    # Validate file size
+    if len(file_content) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE // (1024*1024)}MB"
+        )
+    
+    # Validate file type (check both MIME type and actual content)
+    if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Supported: JPEG, PNG, WEBP"
+            detail=f"Invalid file type. Supported types: {', '.join(settings.ALLOWED_IMAGE_TYPES)}"
+        )
+    
+    # Validate image content and dimensions
+    try:
+        # Reset file position and validate image
+        image_stream = io.BytesIO(file_content)
+        with Image.open(image_stream) as img:
+            # Verify it's actually an image
+            img.verify()
+            
+            # Re-open for dimension checking (verify() makes image unusable)
+            image_stream.seek(0)
+            with Image.open(image_stream) as img:
+                width, height = img.size
+                
+                if width < settings.MIN_IMAGE_WIDTH or height < settings.MIN_IMAGE_HEIGHT:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Image dimensions too small. Minimum required: {settings.MIN_IMAGE_WIDTH}x{settings.MIN_IMAGE_HEIGHT}px, got: {width}x{height}px"
+                    )
+                
+                # Check image format matches MIME type
+                format_mime_mapping = {
+                    'JPEG': 'image/jpeg',
+                    'PNG': 'image/png',
+                    'WEBP': 'image/webp'
+                }
+                
+                if img.format not in format_mime_mapping:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Unsupported image format: {img.format}"
+                    )
+                
+                expected_mime = format_mime_mapping[img.format]
+                if file.content_type != expected_mime:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"File content does not match declared MIME type. Expected: {expected_mime}, got: {file.content_type}"
+                    )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid image file: {str(e)}"
         )
     
     # Get user subscription
@@ -54,8 +114,7 @@ async def create_job(
             detail=error_msg
         )
     
-    # Upload input file
-    file_content = await file.read()
+    # Upload input file (content already read during validation)
     input_url = storage_service.upload_bytes(
         file_content,
         file.filename or "upload.png",
