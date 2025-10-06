@@ -6,31 +6,13 @@ export default {
   ],
   darkMode: 'class', // Use class-based dark mode
   safelist: [
-    // Force include dark mode classes
-    'dark:bg-gray-900',
-    'dark:bg-gray-800', 
-    'dark:bg-gray-700',
-    'dark:text-gray-100',
-    'dark:text-gray-300',
-    'dark:text-gray-400',
-    'dark:text-gray-500',
-    'dark:text-primary-400',
-    'dark:text-primary-300',
-    'dark:border-gray-700',
-    'dark:border-gray-600',
-    'dark:border-gray-500',
-    'dark:hover:bg-gray-700',
-    'dark:hover:bg-gray-600',
-    'dark:hover:text-gray-300',
-    'dark:hover:text-primary-300',
-    'dark:hover:border-primary-400',
-    'dark:bg-primary-900/50',
-    'dark:bg-primary-900/20',
-    'dark:bg-red-900/20',
-    'dark:border-red-500',
-    'dark:text-red-400',
-    'dark:shadow-gray-900/20',
-    'dark:placeholder-gray-400'
+    {
+      pattern: /^(bg|text|border|hover:bg|hover:text|hover:border|placeholder)-(gray|primary|red)-(50|100|200|300|400|500|600|700|800|900)$/,
+      variants: ['dark', 'hover', 'dark:hover'],
+    },
+    {
+      pattern: /^dark:(bg|text|border|hover:bg|hover:text|hover:border|shadow|placeholder)/,
+    },
   ],
   theme: {
     extend: {
