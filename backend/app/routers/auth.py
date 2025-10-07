@@ -289,7 +289,11 @@ async def google_callback(
     """Handle Google OAuth callback."""
     # Verify state token
     stored_provider = await redis_client.get(f"oauth_state:{state}")
-    if not stored_provider or stored_provider.decode() != "google":
+    # Redis may return bytes or str depending on version
+    if isinstance(stored_provider, bytes):
+        stored_provider = stored_provider.decode()
+    
+    if not stored_provider or stored_provider != "google":
         # Redirect to frontend with error
         return RedirectResponse(
             url=f"{settings.FRONTEND_URL}/login?error=invalid_state"
