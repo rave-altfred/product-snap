@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import secrets
 import uuid
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -141,3 +142,36 @@ class AuthService:
     def generate_verification_token() -> str:
         """Generate an email verification token."""
         return secrets.token_urlsafe(32)
+    
+    @staticmethod
+    async def exchange_google_code(code: str, redirect_uri: str) -> dict:
+        """Exchange Google OAuth code for tokens and get user info."""
+        async with httpx.AsyncClient() as client:
+            # Exchange code for access token
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code"
+                }
+            )
+            
+            if token_response.status_code != 200:
+                raise Exception(f"Failed to exchange code: {token_response.text}")
+            
+            tokens = token_response.json()
+            access_token = tokens.get("access_token")
+            
+            # Get user info from Google
+            userinfo_response = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            
+            if userinfo_response.status_code != 200:
+                raise Exception(f"Failed to get user info: {userinfo_response.text}")
+            
+            return userinfo_response.json()
