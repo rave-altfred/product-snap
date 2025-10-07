@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import uuid
+import logging
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -13,6 +14,8 @@ from app.models import User, OAuthProvider
 from app.services.auth_service import AuthService
 from app.services.email_service import email_service
 import redis.asyncio as redis
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -359,6 +362,8 @@ async def google_callback(
         return RedirectResponse(url=redirect_url)
         
     except Exception as e:
+        # Log the actual error for debugging
+        logger.error(f"Google OAuth callback failed: {str(e)}", exc_info=True)
         # Redirect to frontend with error
         return RedirectResponse(
             url=f"{settings.FRONTEND_URL}/login?error=oauth_failed"

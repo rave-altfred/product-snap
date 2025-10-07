@@ -174,4 +174,11 @@ class AuthService:
             if userinfo_response.status_code != 200:
                 raise Exception(f"Failed to get user info: {userinfo_response.text}")
             
-            return userinfo_response.json()
+            user_info = userinfo_response.json()
+            
+            # Google's v2 userinfo endpoint returns 'id' instead of 'sub'
+            # Normalize it to 'sub' for consistency with OpenID Connect
+            if 'id' in user_info and 'sub' not in user_info:
+                user_info['sub'] = user_info['id']
+            
+            return user_info
