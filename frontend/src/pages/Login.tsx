@@ -41,7 +41,7 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost'
       const { data } = await axios.get(`${apiUrl}/api/auth/google/login`)
       // Redirect to Google OAuth
       window.location.href = data.authorization_url
