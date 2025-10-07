@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import uuid
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.redis_client import get_redis_client
 from app.models import User, OAuthProvider
 from app.services.auth_service import AuthService
@@ -239,3 +241,121 @@ async def get_current_user(
         )
     
     return user
+
+
+@router.get("/google/login")
+async def google_login(
+    redis_client: redis.Redis = Depends(get_redis_client)
+):
+    """Initiate Google OAuth flow."""
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth is not configured"
+        )
+    
+    # Generate state token for CSRF protection
+    state = AuthService.generate_verification_token()
+    await redis_client.setex(
+        f"oauth_state:{state}",
+        600,  # 10 minutes
+        "google"
+    )
+    
+    # Build Google OAuth URL
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or f"{settings.BACKEND_URL}/api/auth/google/callback"
+    oauth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={settings.GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={redirect_uri}&"
+        "response_type=code&"
+        "scope=openid%20email%20profile&"
+        f"state={state}&"
+        "access_type=offline&"
+        "prompt=consent"
+    )
+    
+    return {"authorization_url": oauth_url}
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    state: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client)
+):
+    """Handle Google OAuth callback."""
+    # Verify state token
+    stored_provider = await redis_client.get(f"oauth_state:{state}")
+    if not stored_provider or stored_provider.decode() != "google":
+        # Redirect to frontend with error
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?error=invalid_state"
+        )
+    
+    # Delete used state token
+    await redis_client.delete(f"oauth_state:{state}")
+    
+    try:
+        # Exchange code for tokens and get user info
+        google_user_info = await AuthService.exchange_google_code(
+            code,
+            settings.GOOGLE_REDIRECT_URI or f"{settings.BACKEND_URL}/api/auth/google/callback"
+        )
+        
+        # Find or create user
+        user = db.query(User).filter(
+            User.oauth_provider == OAuthProvider.GOOGLE,
+            User.oauth_sub == google_user_info["sub"]
+        ).first()
+        
+        if not user:
+            # Check if email already exists with different provider
+            existing_user = db.query(User).filter(User.email == google_user_info["email"]).first()
+            if existing_user:
+                # Link Google account to existing user
+                user = existing_user
+                user.oauth_provider = OAuthProvider.GOOGLE
+                user.oauth_sub = google_user_info["sub"]
+                user.email_verified = google_user_info.get("email_verified", False)
+                if google_user_info.get("picture"):
+                    user.avatar_url = google_user_info["picture"]
+                db.commit()
+            else:
+                # Create new user
+                user = AuthService.create_user(
+                    db,
+                    email=google_user_info["email"],
+                    oauth_provider=OAuthProvider.GOOGLE,
+                    oauth_sub=google_user_info["sub"],
+                    full_name=google_user_info.get("name"),
+                    avatar_url=google_user_info.get("picture"),
+                    email_verified=google_user_info.get("email_verified", False)
+                )
+        
+        # Create session
+        refresh_token, session = AuthService.create_session(
+            db,
+            user.id,
+            user_agent=request.headers.get("user-agent"),
+            ip_address=request.client.host
+        )
+        
+        # Create access token
+        access_token = AuthService.create_access_token({"sub": user.id, "email": user.email})
+        
+        # Redirect to frontend with tokens
+        redirect_url = (
+            f"{settings.FRONTEND_URL}/auth/callback?"
+            f"access_token={access_token}&"
+            f"refresh_token={refresh_token}"
+        )
+        return RedirectResponse(url=redirect_url)
+        
+    except Exception as e:
+        # Redirect to frontend with error
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?error=oauth_failed"
+        )
