@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import OAuthCallback from './pages/OAuthCallback'
 import Dashboard from './pages/Dashboard'
 import NewShoot from './pages/NewShoot'
 import Library from './pages/Library'
@@ -21,6 +22,7 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/auth/callback" element={<OAuthCallback />} />
       
       <Route element={<Layout />}>
         <Route
