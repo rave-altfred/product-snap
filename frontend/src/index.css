@@ -4,28 +4,108 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    @apply bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100;
+    @apply min-h-screen;
+  }
+  
+  * {
+    @apply transition-colors duration-200;
   }
 }
 
 @layer components {
+  /* Modern Buttons */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform;
+    @apply hover:scale-105 active:scale-95;
+    @apply shadow-lg hover:shadow-xl;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-gradient-to-r from-primary-600 to-primary-700 text-white;
+    @apply hover:from-primary-700 hover:to-primary-800;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    @apply shadow-primary-500/30 hover:shadow-glow;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600;
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm;
+    @apply border-2 border-gray-200 dark:border-gray-700;
+    @apply text-gray-700 dark:text-gray-200;
+    @apply hover:bg-white dark:hover:bg-gray-700;
+    @apply hover:border-primary-300 dark:hover:border-primary-700;
   }
 
+  /* Modern Inputs */
   .input {
-    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400;
+    @apply w-full px-5 py-3.5 rounded-xl;
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm;
+    @apply border-2 border-gray-200 dark:border-gray-700;
+    @apply text-gray-900 dark:text-gray-100;
+    @apply placeholder-gray-400 dark:placeholder-gray-500;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply transition-all duration-200;
+    @apply shadow-sm focus:shadow-md;
   }
 
+  /* Glass Card Effect */
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-900/20 p-6;
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-md;
+    @apply border border-white/20 dark:border-gray-700/50;
+    @apply rounded-2xl shadow-glass dark:shadow-glass-dark;
+    @apply p-6 sm:p-8;
+    @apply transition-all duration-300;
+    @apply hover:shadow-xl hover:scale-[1.02];
+  }
+  
+  .card-flat {
+    @apply bg-white dark:bg-gray-800;
+    @apply border border-gray-200 dark:border-gray-700;
+    @apply rounded-2xl shadow-sm;
+    @apply p-6;
+    @apply transition-all duration-300;
+  }
+
+  /* Stat Card */
+  .stat-card {
+    @apply card;
+    @apply bg-gradient-to-br from-white/90 to-primary-50/50;
+    @apply dark:from-gray-800/90 dark:to-primary-950/30;
+  }
+
+  /* Feature Card */
+  .feature-card {
+    @apply card;
+    @apply hover:border-primary-300 dark:hover:border-primary-700;
+  }
+  
+  .feature-card:hover .feature-icon {
+    transform: scale(1.1) rotate(3deg);
+  }
+
+  .feature-icon {
+    @apply w-14 h-14 rounded-2xl flex items-center justify-center;
+    @apply bg-gradient-to-br from-primary-500 to-primary-600;
+    @apply text-white shadow-lg;
+    @apply transition-all duration-300;
+    @apply group-hover:scale-110 group-hover:rotate-3;
+    @apply group-hover:shadow-glow;
+  }
+
+  /* Glass Navigation */
+  .nav-glass {
+    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg;
+    @apply border-b border-white/20 dark:border-gray-800/50;
+    @apply shadow-lg;
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent;
+  }
+
+  /* Loading Skeleton */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
   }
 }
