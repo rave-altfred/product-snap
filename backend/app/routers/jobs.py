@@ -73,7 +73,8 @@ async def create_job(
                 format_mime_mapping = {
                     'JPEG': 'image/jpeg',
                     'PNG': 'image/png',
-                    'WEBP': 'image/webp'
+                    'WEBP': 'image/webp',
+                    'HEIF': ['image/heic', 'image/heif']
                 }
                 
                 if img.format not in format_mime_mapping:
@@ -83,11 +84,19 @@ async def create_job(
                     )
                 
                 expected_mime = format_mime_mapping[img.format]
-                if file.content_type != expected_mime:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"File content does not match declared MIME type. Expected: {expected_mime}, got: {file.content_type}"
-                    )
+                # Handle both single MIME type and list of MIME types (for HEIF)
+                if isinstance(expected_mime, list):
+                    if file.content_type not in expected_mime:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"File content does not match declared MIME type. Expected one of: {', '.join(expected_mime)}, got: {file.content_type}"
+                        )
+                else:
+                    if file.content_type != expected_mime:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"File content does not match declared MIME type. Expected: {expected_mime}, got: {file.content_type}"
+                        )
                 
     except HTTPException:
         raise
