@@ -12,7 +12,7 @@ interface UserProfile {
 }
 
 export default function Account() {
-  const { user, logout } = useAuthStore()
+  const { logout } = useAuthStore()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,9 +32,9 @@ export default function Account() {
   const fetchProfile = async () => {
     try {
       setLoading(true)
-      const data = await api.get('/users/me')
-      setProfile(data)
-      setFullName(data.full_name || '')
+      const response = await api.get('/users/me')
+      setProfile(response.data)
+      setFullName(response.data.full_name || '')
     } catch (err: any) {
       setError(err.message || 'Failed to load profile')
     } finally {

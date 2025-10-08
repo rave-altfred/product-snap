@@ -24,7 +24,7 @@ export default function Billing() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [selectedPlan] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
 
   useEffect(() => {
@@ -34,12 +34,12 @@ export default function Billing() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [plansData, subData] = await Promise.all([
+      const [plansResponse, subResponse] = await Promise.all([
         api.get('/subscriptions/plans'),
         api.get('/subscriptions/me')
       ])
-      setPlans(plansData.plans || [])
-      setSubscription(subData)
+      setPlans(plansResponse.data.plans || [])
+      setSubscription(subResponse.data)
     } catch (err: any) {
       setError(err.message || 'Failed to load billing information')
     } finally {
@@ -57,8 +57,8 @@ export default function Billing() {
       })
       
       // Redirect to PayPal approval URL
-      if (response.approval_url) {
-        window.location.href = response.approval_url
+      if (response.data.approval_url) {
+        window.location.href = response.data.approval_url
       }
     } catch (err: any) {
       setError(err.message || 'Failed to create subscription')
