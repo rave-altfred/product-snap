@@ -2,6 +2,8 @@ import httpx
 import asyncio
 from typing import Optional, Dict
 import logging
+import uuid
+from datetime import datetime
 
 from app.core.config import settings
 from app.models import JobMode
@@ -32,6 +34,7 @@ class NanoBananaClient:
     def __init__(self):
         self.api_key = settings.NANO_BANANA_API_KEY
         self.api_url = settings.NANO_BANANA_API_URL
+        self.mode = settings.IMAGE_GENERATION_MODE
         self.client = httpx.AsyncClient(
             timeout=30.0,
             headers={
@@ -39,6 +42,7 @@ class NanoBananaClient:
                 "Content-Type": "application/json"
             }
         )
+        logger.info(f"NanoBananaClient initialized in {self.mode} mode")
     
     def get_prompt(self, mode: JobMode, custom_prompt: Optional[str] = None) -> str:
         """Get the prompt for a job mode."""
@@ -56,6 +60,17 @@ class NanoBananaClient:
         """Create a new image generation job."""
         prompt = self.get_prompt(mode, custom_prompt)
         
+        # Mock mode - simulate job creation
+        if self.mode == "mock":
+            job_id = f"mock_{uuid.uuid4().hex[:12]}"
+            logger.info(f"[MOCK] Created job {job_id} for mode {mode.value}")
+            return {
+                "job_id": job_id,
+                "status": "queued",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        
+        # Live mode - actual API call
         payload = {
             "input_image": input_image_url,
             "prompt": prompt,
@@ -77,6 +92,17 @@ class NanoBananaClient:
     
     async def get_job_status(self, job_id: str) -> Dict:
         """Get the status of a generation job."""
+        # Mock mode - simulate completed job
+        if self.mode == "mock":
+            logger.info(f"[MOCK] Checking status for job {job_id}")
+            return {
+                "job_id": job_id,
+                "status": "completed",
+                "output_url": f"https://mock-storage.example.com/results/{job_id}.png",
+                "completed_at": datetime.utcnow().isoformat()
+            }
+        
+        # Live mode - actual API call
         try:
             response = await self.client.get(
                 f"{self.api_url}/v1/jobs/{job_id}"
@@ -111,6 +137,17 @@ class NanoBananaClient:
     
     async def download_result(self, result_url: str) -> bytes:
         """Download generated image."""
+        # Mock mode - return a simple 1x1 PNG
+        if self.mode == "mock":
+            logger.info(f"[MOCK] Downloading result from {result_url}")
+            # Minimal valid PNG (1x1 transparent pixel)
+            return bytes.fromhex(
+                '89504e470d0a1a0a0000000d494844520000000100000001'
+                '08060000001f15c4890000000a49444154789c6300010000'
+                '00050001d5a371fe0000000049454e44ae426082'
+            )
+        
+        # Live mode - actual download
         try:
             response = await self.client.get(result_url)
             response.raise_for_status()

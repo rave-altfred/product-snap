@@ -39,9 +39,10 @@ class Settings(BaseSettings):
     PAYPAL_PLAN_ID_PRO_MONTHLY: Optional[str] = None
     PAYPAL_PLAN_ID_PRO_YEARLY: Optional[str] = None
     
-    # Nano Banana
+    # Nano Banana (Gemini 2.5 Flash)
     NANO_BANANA_API_KEY: str
-    NANO_BANANA_API_URL: str = "https://api.nanobanana.com"
+    NANO_BANANA_API_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    IMAGE_GENERATION_MODE: str = "live"  # 'live' or 'mock'
     
     # S3/Spaces
     S3_ENDPOINT: str
