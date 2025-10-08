@@ -1,0 +1,6 @@
+# Ignore droplet information file (contains IP addresses and IDs)
+droplet-info.env
+
+# Ignore any temporary files
+*.tmp
+*.bak
