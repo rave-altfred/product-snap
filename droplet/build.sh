@@ -35,15 +35,6 @@ if ! docker info &> /dev/null; then
     exit 1
 fi
 
-FULL_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:$TAG"
-CACHE_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:buildcache"
-
-# Check if Dockerfile exists
-if [ ! -f "Dockerfile" ]; then
-    echo "Error: Dockerfile not found in current directory."
-    exit 1
-fi
-
 # Verify target platform compatibility
 echo "Verifying platform compatibility..."
 if [[ "$PLATFORM" == *"arm"* ]] && [[ "$(uname -m)" != "arm64" ]]; then
@@ -165,10 +156,6 @@ for img in "${BUILT_IMAGES[@]}"; do
     SIZE=$(docker image inspect "$img" --format='{{.Size}}' 2>/dev/null | awk '{print int($1/1024/1024)}')MB || echo "N/A"
     echo "  - $img ($SIZE)"
 done
-
-echo ""
-echo "Docker disk usage:"
-docker system df --format "table {{.Type}}\t{{.TotalCount}}\t{{.Size}}\t{{.Reclaimable}}" 2>/dev/null || docker system df
 
 echo ""
 echo "Next steps:"

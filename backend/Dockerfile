@@ -1,3 +1,4 @@
+# Multi-stage Dockerfile for ProductSnap Backend
 FROM python:3.11-slim as base
 
 # Install system dependencies in base layer
