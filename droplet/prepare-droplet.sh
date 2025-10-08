@@ -33,7 +33,8 @@ if [ -n "$FLOATING_IP" ] && [[ ! "$FLOATING_IP" =~ "Error" ]]; then
     echo "✓ Floating IP reserved: $FLOATING_IP"
     
     echo "Assigning floating IP to droplet..."
-    doctl compute floating-ip-action assign "$FLOATING_IP" "$DROPLET_ID" --wait
+    doctl compute floating-ip-action assign "$FLOATING_IP" "$DROPLET_ID"
+    sleep 3  # Wait for assignment to complete
     echo "✓ Floating IP assigned to droplet"
     
     # Update droplet IP to floating IP
