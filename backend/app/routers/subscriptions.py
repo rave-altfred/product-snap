@@ -69,8 +69,8 @@ async def get_subscription_plans():
                 ]
             },
             {
-                "id": "personal",
-                "name": "Personal",
+                "id": "basic_monthly",
+                "name": "Basic",
                 "price": 9.99,
                 "currency": "USD",
                 "interval": "month",
@@ -78,11 +78,27 @@ async def get_subscription_plans():
                     "100 jobs per month",
                     "3 concurrent jobs",
                     "No watermarks",
-                    "Email support"
+                    "Email support",
+                    "Priority queue"
                 ]
             },
             {
-                "id": "pro",
+                "id": "basic_yearly",
+                "name": "Basic",
+                "price": 99.99,
+                "currency": "USD",
+                "interval": "year",
+                "savings": "17%",
+                "features": [
+                    "100 jobs per month",
+                    "3 concurrent jobs",
+                    "No watermarks",
+                    "Email support",
+                    "Priority queue"
+                ]
+            },
+            {
+                "id": "pro_monthly",
                 "name": "Pro",
                 "price": 29.99,
                 "currency": "USD",
@@ -92,7 +108,24 @@ async def get_subscription_plans():
                     "5 concurrent jobs",
                     "Priority queue",
                     "Custom prompts",
-                    "Priority support"
+                    "Priority support",
+                    "API access"
+                ]
+            },
+            {
+                "id": "pro_yearly",
+                "name": "Pro",
+                "price": 299.99,
+                "currency": "USD",
+                "interval": "year",
+                "savings": "17%",
+                "features": [
+                    "1000 jobs per month",
+                    "5 concurrent jobs",
+                    "Priority queue",
+                    "Custom prompts",
+                    "Priority support",
+                    "API access"
                 ]
             }
         ]
@@ -108,10 +141,21 @@ async def create_subscription(
     """Create a new PayPal subscription."""
     try:
         # Validate plan
-        if request.plan not in ["personal", "pro"]:
-            raise HTTPException(status_code=400, detail="Invalid plan. Only 'personal' and 'pro' plans can be purchased.")
+        valid_plans = ["basic_monthly", "basic_yearly", "pro_monthly", "pro_yearly"]
+        if request.plan not in valid_plans:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid plan. Must be one of: {', '.join(valid_plans)}"
+            )
         
-        plan_enum = SubscriptionPlan.PERSONAL if request.plan == "personal" else SubscriptionPlan.PRO
+        # Map plan string to enum
+        plan_map = {
+            "basic_monthly": SubscriptionPlan.BASIC_MONTHLY,
+            "basic_yearly": SubscriptionPlan.BASIC_YEARLY,
+            "pro_monthly": SubscriptionPlan.PRO_MONTHLY,
+            "pro_yearly": SubscriptionPlan.PRO_YEARLY
+        }
+        plan_enum = plan_map[request.plan]
         
         # Check if user already has an active subscription
         existing_subscription = db.query(Subscription).filter(
