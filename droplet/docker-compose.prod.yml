@@ -6,6 +6,8 @@ services:
     image: ${REGISTRY}/${REGISTRY_NAMESPACE}/${PROJECT_NAME}-backend:${TAG}
     container_name: ${PROJECT_NAME}-backend
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"  # Only expose on localhost
     environment:
       # Database (External - DigitalOcean Managed)
       DATABASE_URL: ${DATABASE_URL}
@@ -139,6 +141,8 @@ services:
     image: ${REGISTRY}/${REGISTRY_NAMESPACE}/${PROJECT_NAME}-frontend:${TAG}
     container_name: ${PROJECT_NAME}-frontend
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"  # Only expose on localhost
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
@@ -174,41 +178,9 @@ services:
     networks:
       - app-network
 
-  # NGINX Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: ${PROJECT_NAME}-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - nginx_cache:/var/cache/nginx
-    depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - app-network
 
 volumes:
   redis_data:
-    driver: local
-  nginx_cache:
     driver: local
 
 networks:

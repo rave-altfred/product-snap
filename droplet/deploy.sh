@@ -136,15 +136,13 @@ ssh root@$DROPLET_IP "mkdir -p $APP_DIR/nginx/conf.d $APP_DIR/nginx/ssl"
 scp -o StrictHostKeyChecking=no /tmp/docker-compose.yml root@$DROPLET_IP:$APP_DIR/docker-compose.yml
 scp -o StrictHostKeyChecking=no /tmp/.env.production root@$DROPLET_IP:$APP_DIR/.env.production
 
-# Upload nginx configs if they exist
-if [ -d "$SCRIPT_DIR/../nginx" ]; then
-    echo "Uploading nginx configuration..."
-    if [ -f "$SCRIPT_DIR/../nginx/nginx.conf" ]; then
-        scp -o StrictHostKeyChecking=no "$SCRIPT_DIR/../nginx/nginx.conf" root@$DROPLET_IP:$APP_DIR/nginx/nginx.conf
-    fi
-    if [ -d "$SCRIPT_DIR/../nginx/conf.d" ]; then
-        scp -o StrictHostKeyChecking=no -r "$SCRIPT_DIR/../nginx/conf.d/"* root@$DROPLET_IP:$APP_DIR/nginx/conf.d/ 2>/dev/null || true
-    fi
+# Upload system nginx config
+if [ -f "$SCRIPT_DIR/../nginx/productsnap-system.conf" ]; then
+    echo "Uploading system nginx configuration..."
+    scp -o StrictHostKeyChecking=no "$SCRIPT_DIR/../nginx/productsnap-system.conf" root@$DROPLET_IP:/etc/nginx/sites-available/productsnap.conf
+    
+    # Enable site and test configuration
+    ssh root@$DROPLET_IP "ln -sf /etc/nginx/sites-available/productsnap.conf /etc/nginx/sites-enabled/productsnap.conf && nginx -t && systemctl reload nginx || echo 'Nginx will be configured after SSL setup'"
 fi
 
 echo "Configuring registry authentication on droplet..."
