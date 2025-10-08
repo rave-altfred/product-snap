@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 
@@ -23,8 +23,8 @@ class CreateSubscriptionRequest(BaseModel):
 class SubscriptionResponse(BaseModel):
     plan: str
     status: str
-    current_period_end: str | None = None
-    paypal_subscription_id: str | None = None
+    current_period_end: Optional[str] = None
+    paypal_subscription_id: Optional[str] = None
 
 
 @router.get("/me", response_model=SubscriptionResponse)
