@@ -315,41 +315,44 @@ export default function NewShoot() {
               </div>
             </div>
           ) : (
-            <div className="relative">
-              {previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
-                  onError={(e) => {
-                    console.log('Preview image failed to load, hiding...')
-                    e.currentTarget.style.display = 'none'
-                    const placeholder = e.currentTarget.nextElementSibling
-                    if (placeholder) {
-                      (placeholder as HTMLElement).style.display = 'flex'
-                    }
-                  }}
-                />
-              ) : null}
-              <div 
-                className="max-w-full h-96 mx-auto rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800 flex-col items-center justify-center"
-                style={{ display: previewUrl ? 'none' : 'flex' }}
-              >
-                <ImageIcon size={64} className="text-gray-400 dark:text-gray-600 mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">Preview not available</p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">File ready to upload</p>
+            <div>
+              <div className="relative">
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                    onError={(e) => {
+                      console.log('Preview image failed to load, hiding...')
+                      e.currentTarget.style.display = 'none'
+                      const placeholder = e.currentTarget.nextElementSibling
+                      if (placeholder) {
+                        (placeholder as HTMLElement).style.display = 'flex'
+                      }
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className="max-w-full h-96 mx-auto rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800 flex-col items-center justify-center"
+                  style={{ display: previewUrl ? 'none' : 'flex' }}
+                >
+                  <ImageIcon size={64} className="text-gray-400 dark:text-gray-600 mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400">Preview not available</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">File ready to upload</p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={clearFile}
-                className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
-              >
-                ×
-              </button>
-              <div className="mt-4 text-center">
+              <div className="mt-4 text-center space-y-3">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB)
                 </p>
+                <button
+                  type="button"
+                  onClick={clearFile}
+                  className="btn btn-secondary inline-flex items-center gap-2"
+                >
+                  <X size={16} />
+                  Upload Another Image
+                </button>
               </div>
             </div>
           )}
