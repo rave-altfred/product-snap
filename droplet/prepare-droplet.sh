@@ -101,8 +101,9 @@ cat > /tmp/prepare-script.sh << 'SCRIPT_EOF'
 set -e
 
 echo "=== System Update ==="
+export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get upgrade -y
+apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 
 echo "=== Installing Essential Packages ==="
 apt-get install -y \
