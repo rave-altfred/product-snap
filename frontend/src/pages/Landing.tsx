@@ -134,11 +134,14 @@ export default function Landing() {
             <div className="absolute top-0 right-0 bg-primary-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
               POPULAR
             </div>
-            <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">PERSONAL</div>
-            <h3 className="text-2xl font-bold mb-4">Personal</h3>
+            <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">BASIC</div>
+            <h3 className="text-2xl font-bold mb-4">Basic</h3>
             <div className="mb-6">
-              <span className="text-5xl font-extrabold">$29</span>
+              <span className="text-5xl font-extrabold">$9.99</span>
               <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              or $99.99/year <span className="text-success-600 font-semibold">(save 17%)</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
               <li className="flex items-start gap-3">
@@ -155,18 +158,21 @@ export default function Landing() {
               </li>
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
-                <span>Priority support</span>
+                <span>Email support</span>
               </li>
             </ul>
             <Link to="/register" className="btn btn-primary w-full">Get Started</Link>
           </div>
 
           <div className="card-flat">
-            <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">BUSINESS</div>
+            <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">PRO</div>
             <h3 className="text-2xl font-bold mb-4">Pro</h3>
             <div className="mb-6">
-              <span className="text-5xl font-extrabold">$99</span>
+              <span className="text-5xl font-extrabold">$29.99</span>
               <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              or $299.99/year <span className="text-success-600 font-semibold">(save 17%)</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
               <li className="flex items-start gap-3">
@@ -187,7 +193,11 @@ export default function Landing() {
               </li>
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
-                <span>Custom prompts</span>
+                <span>Custom prompts & API access</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
+                <span>Priority support</span>
               </li>
             </ul>
             <Link to="/register" className="btn btn-primary w-full">Get Started</Link>
