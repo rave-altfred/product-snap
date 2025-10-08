@@ -100,7 +100,7 @@ async def get_subscription_plans():
             {
                 "id": "pro_monthly",
                 "name": "Pro",
-                "price": 29.99,
+                "price": 39.90,
                 "currency": "USD",
                 "interval": "month",
                 "features": [
@@ -115,7 +115,7 @@ async def get_subscription_plans():
             {
                 "id": "pro_yearly",
                 "name": "Pro",
-                "price": 299.99,
+                "price": 399.90,
                 "currency": "USD",
                 "interval": "year",
                 "savings": "17%",

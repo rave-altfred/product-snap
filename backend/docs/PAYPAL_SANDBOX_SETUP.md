@@ -6,8 +6,8 @@ This guide walks you through setting up PayPal sandbox for ProductSnap with the 
 
 1. **Basic Monthly** - $9.99/month
 2. **Basic Yearly** - $99.99/year (save ~17%)
-3. **Pro Monthly** - $29.99/month
-4. **Pro Yearly** - $299.99/year (save ~17%)
+3. **Pro Monthly** - $39.90/month
+4. **Pro Yearly** - $399.90/year (save ~17%)
 
 ## Prerequisites
 

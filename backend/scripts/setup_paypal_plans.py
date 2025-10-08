@@ -236,13 +236,13 @@ def main():
     print()
     
     # Create Pro Monthly Plan
-    print("💳 Creating Pro Monthly Plan ($29.99/month)...")
+    print("💳 Creating Pro Monthly Plan ($39.90/month)...")
     pro_monthly_id = create_billing_plan(
         access_token,
         pro_product_id,
         "Pro Monthly",
-        "ProductSnap Pro - Billed Monthly at $29.99/month",
-        "29.99",
+        "ProductSnap Pro - Billed Monthly at $39.90/month",
+        "39.90",
         "MONTH",
         1
     )
@@ -251,13 +251,13 @@ def main():
     print()
     
     # Create Pro Yearly Plan
-    print("💳 Creating Pro Yearly Plan ($299.99/year)...")
+    print("💳 Creating Pro Yearly Plan ($399.90/year)...")
     pro_yearly_id = create_billing_plan(
         access_token,
         pro_product_id,
         "Pro Yearly",
-        "ProductSnap Pro - Billed Annually at $299.99/year (save 17%)",
-        "299.99",
+        "ProductSnap Pro - Billed Annually at $399.90/year (save 17%)",
+        "399.90",
         "YEAR",
         1
     )

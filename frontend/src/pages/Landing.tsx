@@ -168,11 +168,11 @@ export default function Landing() {
             <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">PRO</div>
             <h3 className="text-2xl font-bold mb-4">Pro</h3>
             <div className="mb-6">
-              <span className="text-5xl font-extrabold">$29.99</span>
+              <span className="text-5xl font-extrabold">$39.90</span>
               <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              or $299.99/year <span className="text-success-600 font-semibold">(save 17%)</span>
+              or $399.90/year <span className="text-success-600 font-semibold">(save 17%)</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
               <li className="flex items-start gap-3">
