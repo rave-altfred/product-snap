@@ -1,0 +1,118 @@
+# syntax=docker/dockerfile:1
+# Example Optimized Dockerfile for Next.js/Node.js Application
+# Demonstrates best practices for layer caching and build optimization
+
+# ============================================
+# Base Stage - Common dependencies
+# ============================================
+FROM node:18-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache libc6-compat curl
+
+WORKDIR /app
+
+# ============================================
+# Dependencies Stage - Install npm packages
+# ============================================
+# This stage is separated to maximize cache hits
+# Dependencies change less frequently than source code
+FROM base AS deps
+
+# Copy only package files first (for better caching)
+# If package.json/package-lock.json don't change, this layer is cached
+COPY package.json package-lock.json ./
+
+# Install dependencies
+# Use --frozen-lockfile to ensure reproducible builds
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Install dev dependencies in a separate stage for building
+FROM base AS deps-dev
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# ============================================
+# Builder Stage - Build the application
+# ============================================
+FROM deps-dev AS builder
+
+WORKDIR /app
+
+# Copy source code (this layer changes frequently)
+COPY . .
+
+# Example: Access build-time secrets using BuildKit
+# These secrets are NOT stored in the image layers
+RUN --mount=type=secret,id=DATABASE_URL \
+    --mount=type=secret,id=NEXTAUTH_SECRET \
+    export DATABASE_URL=$(cat /run/secrets/DATABASE_URL 2>/dev/null || echo "") && \
+    export NEXTAUTH_SECRET=$(cat /run/secrets/NEXTAUTH_SECRET 2>/dev/null || echo "") && \
+    npm run build
+
+# Generate Prisma client (if using Prisma)
+# RUN npx prisma generate
+
+# ============================================
+# Runner Stage - Production runtime
+# ============================================
+FROM base AS runner
+
+WORKDIR /app
+
+# Don't run as root
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy only necessary files from builder
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Set user
+USER nextjs
+
+# Expose port
+EXPOSE 3000
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Start the application
+CMD ["node", "server.js"]
+
+# ============================================
+# Layer Optimization Notes:
+# ============================================
+# 1. Package files are copied before source code
+#    - Dependencies change less often than code
+#    - Maximizes cache hit rate
+#
+# 2. Multi-stage build reduces final image size
+#    - Build tools not included in final image
+#    - Only production dependencies included
+#
+# 3. Secrets are mounted, not copied
+#    - No secrets in image layers
+#    - No secrets in build history
+#
+# 4. Dependencies are installed with --frozen-lockfile
+#    - Ensures reproducible builds
+#    - Prevents unexpected updates
+#
+# 5. Non-root user for security
+#    - Reduces attack surface
+#    - Best practice for containers
+#
+# 6. .dockerignore excludes unnecessary files
+#    - Reduces build context size
+#    - Faster builds and smaller images
+# ============================================

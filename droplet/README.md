@@ -86,7 +86,7 @@ This will:
 
 ### 3. Build Docker Image
 
-Builds your Docker image with proper secrets management.
+Builds your Docker image with proper secrets management, platform targeting, and layer caching.
 
 ```bash
 # Load secrets from your secret manager
@@ -99,26 +99,72 @@ export NEXTAUTH_SECRET=$(op read "op://vault/product-snap/NEXTAUTH_SECRET")
 ```
 
 This will:
-- Build Docker image using BuildKit
+- Build for the correct platform (linux/amd64 for DigitalOcean droplets)
+- Use Docker BuildKit with optimized layer caching
+- Pull and use cache from registry for faster builds
 - Mount secrets securely (not in env or image layers)
 - Tag image for DigitalOcean Container Registry
 - Create `.dockerignore` if needed
+- Create and tag cache image for subsequent builds
 
-**Note:** Your Dockerfile should use `--mount=type=secret` to access build secrets:
+**Build Optimizations:**
+
+1. **Platform Targeting**: Automatically builds for `linux/amd64` (standard for DigitalOcean)
+   - On Apple Silicon Macs, uses emulation automatically
+   - Override with: `BUILD_PLATFORM=linux/arm64 ./droplet/build.sh`
+
+2. **Registry-Based Caching** (Default - Recommended):
+   - Pulls cache from registry before building
+   - Subsequent builds are 5-10x faster
+   - Works across machines and in CI/CD
+   - Best for team development
+
+3. **Local Caching** (Alternative):
+   - Uses only local Docker cache
+   - Faster for solo development
+   - Enable with: `CACHE_FROM_REGISTRY=false ./droplet/build.sh`
+
+4. **No Cache** (For troubleshooting):
+   - Forces clean build
+   - Use when cache is causing issues
+   - Enable with: `USE_CACHE=false ./droplet/build.sh`
+
+**Dockerfile Requirements:**
+
+Your Dockerfile should follow these best practices (see `Dockerfile.example`):
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM node:18-alpine
+# Multi-stage build for optimal layer caching
 
-# Example: Reading a secret during build
+# Stage 1: Dependencies (cached when package.json unchanged)
+FROM node:18-alpine AS deps
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Stage 2: Builder (uses secrets)
+FROM deps AS builder
+COPY . .
 RUN --mount=type=secret,id=DATABASE_URL \
     export DATABASE_URL=$(cat /run/secrets/DATABASE_URL) && \
-    # Your build commands here
+    npm run build
+
+# Stage 3: Production runtime (minimal)
+FROM node:18-alpine AS runner
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+CMD ["npm", "start"]
 ```
+
+**Key Optimization Principles:**
+- Copy package files BEFORE source code
+- Install dependencies in a separate stage
+- Use multi-stage builds to reduce final image size
+- Place frequently changing code in later layers
 
 ### 4. Push to Registry
 
-Pushes the built image to DigitalOcean Container Registry.
+Pushes the built image and cache to DigitalOcean Container Registry.
 
 ```bash
 ./droplet/push.sh
@@ -127,7 +173,14 @@ Pushes the built image to DigitalOcean Container Registry.
 This will:
 - Authenticate with DigitalOcean Container Registry
 - Push the Docker image
+- Push the cache image (for faster subsequent builds)
 - Verify the upload
+
+**Cache Management:**
+- Cache is pushed by default for team/CI benefits
+- Skip cache push: `PUSH_CACHE=false ./droplet/push.sh`
+- First build has no cache (normal)
+- Subsequent builds reuse cache from registry
 
 ### 5. Deploy to Droplet
 

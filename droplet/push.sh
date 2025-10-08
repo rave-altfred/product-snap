@@ -3,14 +3,17 @@ set -e
 
 # Docker Push Script
 # Pushes built images to DigitalOcean Container Registry
+# Supports pushing cache images for faster subsequent builds
 
 # Configuration
 REGISTRY="${DO_REGISTRY:-registry.digitalocean.com}"
 REGISTRY_NAMESPACE="${DO_REGISTRY_NAMESPACE:-}"
 IMAGE_NAME="${IMAGE_NAME:-product-snap}"
 TAG="${IMAGE_TAG:-latest}"
+PUSH_CACHE="${PUSH_CACHE:-true}"  # Also push cache image
 
 echo "Pushing Docker image to DigitalOcean Container Registry..."
+echo "Push cache: $PUSH_CACHE"
 echo ""
 
 # Validate registry namespace
@@ -21,6 +24,7 @@ if [ -z "$REGISTRY_NAMESPACE" ]; then
 fi
 
 FULL_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:$TAG"
+CACHE_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:buildcache"
 
 # Check if image exists locally
 if ! docker image inspect "$FULL_IMAGE_NAME" &> /dev/null; then
@@ -50,12 +54,37 @@ echo ""
 echo "Pushing image: $FULL_IMAGE_NAME"
 docker push "$FULL_IMAGE_NAME"
 
+# Push cache image if it exists and PUSH_CACHE is true
+if [ "$PUSH_CACHE" = "true" ]; then
+    if docker image inspect "$CACHE_IMAGE_NAME" &> /dev/null; then
+        echo ""
+        echo "Pushing cache image for faster subsequent builds..."
+        echo "Cache image: $CACHE_IMAGE_NAME"
+        docker push "$CACHE_IMAGE_NAME"
+        echo "✓ Cache image pushed successfully!"
+    else
+        echo ""
+        echo "Note: No cache image found. This is normal for the first build."
+        echo "Subsequent builds will create and push cache images automatically."
+    fi
+fi
+
 echo ""
 echo "✓ Image pushed successfully!"
 echo "Image: $FULL_IMAGE_NAME"
+if [ "$PUSH_CACHE" = "true" ] && docker image inspect "$CACHE_IMAGE_NAME" &> /dev/null; then
+    echo "Cache: $CACHE_IMAGE_NAME"
+fi
+
 echo ""
 echo "Verifying image in registry..."
 doctl registry repository list-tags "$REGISTRY_NAMESPACE/$IMAGE_NAME" || echo "Note: Use doctl registry repository list to see all images"
+
+echo ""
+echo "Build cache info:"
+echo "  - Cache is stored in registry for distributed/team builds"
+echo "  - Subsequent builds will be significantly faster"
+echo "  - To skip cache push: PUSH_CACHE=false ./droplet/push.sh"
 
 echo ""
 echo "Next step:"
