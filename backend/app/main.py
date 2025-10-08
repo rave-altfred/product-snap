@@ -14,7 +14,7 @@ register_heif_opener()
 from app.core.config import settings
 from app.core.logging import setup_logging, set_request_id
 from app.core.redis_client import get_redis_client, close_redis_client
-from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks
+from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks, preview
 
 # Setup logging
 logger = setup_logging()
@@ -109,6 +109,7 @@ app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
 app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Subscriptions"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(preview.router, prefix="/api/preview", tags=["Preview"])
 
 
 @app.get("/")

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, Camera, Image as ImageIcon, Wand2, X } from 'lucide-react'
 import { jobsApi } from '../lib/api'
-import heic2any from 'heic2any'
+import axios from 'axios'
 
 type JobMode = 'STUDIO_WHITE' | 'MODEL_TRYON' | 'LIFESTYLE_SCENE'
 
@@ -83,37 +83,40 @@ export default function NewShoot() {
     setSelectedFile(file)
     setError('')
 
-    // Create preview URL - convert HEIC to JPEG if needed
+    // Create preview URL - use server-side conversion for HEIC
     const createPreview = async () => {
       try {
-        let previewBlob: Blob | File = file
-        
-        // Convert HEIC/HEIF to JPEG for browser preview
         if (isHeic) {
-          console.log('Converting HEIC to JPEG for preview...')
-          const convertedBlob = await heic2any({
-            blob: file,
-            toType: 'image/jpeg',
-            quality: 0.8
+          // For HEIC files, send to server for conversion
+          console.log('Uploading HEIC to server for preview conversion...')
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const response = await axios.post('/api/preview/generate', formData, {
+            responseType: 'blob'
           })
-          previewBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob
-          console.log('HEIC conversion successful')
+          
+          // Create object URL from the JPEG blob
+          const blobUrl = URL.createObjectURL(response.data)
+          setPreviewUrl(blobUrl)
+          console.log('HEIC preview generated successfully')
+        } else {
+          // For other formats, use FileReader as before
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            console.log('Preview generated successfully')
+            setPreviewUrl(e.target?.result as string)
+          }
+          reader.onerror = (e) => {
+            console.error('Error reading file for preview:', e)
+            setPreviewUrl(null)
+          }
+          reader.readAsDataURL(file)
         }
-        
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          console.log('Preview generated successfully')
-          setPreviewUrl(e.target?.result as string)
-        }
-        reader.onerror = (e) => {
-          console.error('Error reading file for preview:', e)
-          setPreviewUrl(null)
-        }
-        reader.readAsDataURL(previewBlob)
       } catch (error) {
-        console.error('Error converting HEIC for preview:', error)
+        console.error('Error generating preview:', error)
         console.log('Will show placeholder instead. Original file will still be uploaded correctly.')
-        // Still allow upload even if conversion fails - just show placeholder
+        // Still allow upload even if preview fails
         setPreviewUrl(null)
       }
     }
