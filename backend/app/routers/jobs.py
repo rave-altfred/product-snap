@@ -6,6 +6,11 @@ import uuid
 from PIL import Image
 import io
 
+# Register HEIF support
+import pillow_heif
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 from app.core.database import get_db
 from app.core.redis_client import get_redis_client
 from app.core.config import settings
@@ -33,6 +38,9 @@ async def create_job(
     redis_client: redis.Redis = Depends(get_redis_client)
 ):
     """Create a new image generation job."""
+    # Register HEIF support (safe to call multiple times)
+    register_heif_opener()
+    
     # Debug logging
     import logging
     logger = logging.getLogger(__name__)
@@ -60,56 +68,89 @@ async def create_job(
     
     # Validate image content and dimensions
     try:
-        # Reset file position and validate image
-        image_stream = io.BytesIO(file_content)
-        with Image.open(image_stream) as img:
-            # Verify it's actually an image
-            img.verify()
+        # Check if it's a HEIC/HEIF file by extension
+        is_heif = file.filename and (file.filename.lower().endswith('.heic') or file.filename.lower().endswith('.heif'))
+        
+        if is_heif:
+            # Use low-level _pillow_heif API to bypass strict metadata validation
+            logger.info("Decoding HEIC file with _pillow_heif low-level API...")
+            import _pillow_heif
+            heif_ctx = _pillow_heif.load_file(file_content, load_cb_info=False)
+            logger.info(f"HEIC context loaded - images count: {heif_ctx.images_count}")
             
-            # Re-open for dimension checking (verify() makes image unusable)
-            image_stream.seek(0)
-            with Image.open(image_stream) as img:
-                width, height = img.size
-                logger.info(f"Image opened - Format: {img.format}, Mode: {img.mode}, Size: {width}x{height}")
+            if heif_ctx.images_count > 0:
+                # Decode the first image
+                heif_ctx.decode_image(0)
+                img_data = heif_ctx.get_image_data(0)
                 
+                width = img_data['width']
+                height = img_data['height']
+                logger.info(f"HEIC decoded - Size: {width}x{height}, Mode: {img_data['mode']}")
+                
+                # Validate dimensions
                 if width < settings.MIN_IMAGE_WIDTH or height < settings.MIN_IMAGE_HEIGHT:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Image dimensions too small. Minimum required: {settings.MIN_IMAGE_WIDTH}x{settings.MIN_IMAGE_HEIGHT}px, got: {width}x{height}px"
                     )
                 
-                # Check image format matches MIME type
-                format_mime_mapping = {
-                    'JPEG': 'image/jpeg',
-                    'PNG': 'image/png',
-                    'WEBP': 'image/webp',
-                    'HEIF': ['image/heic', 'image/heif']
-                }
+                # Skip the rest of validation for HEIC since we've already decoded it
+                img_format = 'HEIF'
+            else:
+                raise ValueError("No images found in HEIC file")
+        else:
+            # Reset file position and validate image
+            image_stream = io.BytesIO(file_content)
+            with Image.open(image_stream) as img:
+                # Verify it's actually an image
+                img.verify()
                 
-                if img.format not in format_mime_mapping:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Unsupported image format: {img.format}"
-                    )
+                # Re-open for dimension checking (verify() makes image unusable)
+                image_stream.seek(0)
+                with Image.open(image_stream) as img:
+                    width, height = img.size
+                    img_format = img.format
+                    logger.info(f"Image opened - Format: {img_format}, Mode: {img.mode}, Size: {width}x{height}")
                 
-                expected_mime = format_mime_mapping[img.format]
-                # Handle both single MIME type and list of MIME types (for HEIF)
-                if isinstance(expected_mime, list):
-                    if file.content_type not in expected_mime:
+                    if width < settings.MIN_IMAGE_WIDTH or height < settings.MIN_IMAGE_HEIGHT:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"File content does not match declared MIME type. Expected one of: {', '.join(expected_mime)}, got: {file.content_type}"
+                            detail=f"Image dimensions too small. Minimum required: {settings.MIN_IMAGE_WIDTH}x{settings.MIN_IMAGE_HEIGHT}px, got: {width}x{height}px"
                         )
-                else:
-                    if file.content_type != expected_mime:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"File content does not match declared MIME type. Expected: {expected_mime}, got: {file.content_type}"
-                        )
+        
+        # Check image format matches MIME type
+        format_mime_mapping = {
+            'JPEG': 'image/jpeg',
+            'PNG': 'image/png',
+            'WEBP': 'image/webp',
+            'HEIF': ['image/heic', 'image/heif']
+        }
+        
+        if img_format not in format_mime_mapping:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported image format: {img_format}"
+            )
+        
+        expected_mime = format_mime_mapping[img_format]
+        # Handle both single MIME type and list of MIME types (for HEIF)
+        if isinstance(expected_mime, list):
+            if file.content_type not in expected_mime:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File content does not match declared MIME type. Expected one of: {', '.join(expected_mime)}, got: {file.content_type}"
+                )
+        else:
+            if file.content_type != expected_mime:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File content does not match declared MIME type. Expected: {expected_mime}, got: {file.content_type}"
+                )
                 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to validate image: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid image file: {str(e)}"

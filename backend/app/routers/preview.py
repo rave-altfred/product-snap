@@ -34,26 +34,41 @@ async def generate_preview(file: UploadFile = File(...)):
         image_stream = io.BytesIO(file_content)
         
         if is_heif:
-            logger.info("Opening HEIC file with registered PIL opener...")
+            logger.info("Opening HEIC file with pillow_heif.open_heif()...")
             try:
-                # Try opening with PIL Image directly
-                img = Image.open(image_stream)
-                # Force load to catch any issues early
-                img.load()
-                logger.info(f"HEIC opened successfully - Format: {img.format}, Mode: {img.mode}, Size: {img.size}")
+                # Use open_heif with strict=False to bypass metadata validation
+                import _pillow_heif
+                heif_ctx = _pillow_heif.load_file(file_content, load_cb_info=False)
+                logger.info(f"HEIC context loaded - images count: {heif_ctx.images_count}")
+                
+                # Get first image
+                if heif_ctx.images_count > 0:
+                    # Decode the first image
+                    heif_ctx.decode_image(0)
+                    img_data = heif_ctx.get_image_data(0)
+                    
+                    logger.info(f"HEIC decoded - Size: {img_data['width']}x{img_data['height']}, Mode: {img_data['mode']}")
+                    
+                    # Convert to PIL Image
+                    img = Image.frombytes(
+                        img_data['mode'],
+                        (img_data['width'], img_data['height']),
+                        img_data['data'],
+                        'raw'
+                    )
+                    logger.info(f"HEIC converted to PIL Image successfully")
+                else:
+                    raise ValueError("No images found in HEIC file")
             except Exception as e:
-                logger.error(f"Failed to open HEIC with PIL: {e}")
-                # Last resort: try to extract first frame using pillow_heif low-level API
+                logger.error(f"Failed to decode HEIC with low-level API: {e}")
+                # Last resort: Try with PIL + registered opener
                 try:
-                    import _pillow_heif
-                    # Try to read with minimal validation
-                    heif = _pillow_heif.HeifFile(file_content)
-                    # Get first image
-                    data = heif.to_bytes()
-                    img = Image.frombytes(heif.mode, heif.size, data, 'raw')
-                    logger.info("HEIC decoded using low-level _pillow_heif API")
+                    image_stream.seek(0)
+                    img = Image.open(image_stream)
+                    img.load()
+                    logger.info(f"HEIC opened with PIL fallback - Format: {img.format}, Mode: {img.mode}")
                 except Exception as e2:
-                    logger.error(f"Low-level decode also failed: {e2}")
+                    logger.error(f"PIL fallback also failed: {e2}")
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Cannot decode this HEIC file. It may be corrupted or use an unsupported format."
