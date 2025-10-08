@@ -10,9 +10,6 @@ REGION="${DO_REGION:-fra1}"  # Default to Frankfurt
 SIZE="${DO_SIZE:-s-1vcpu-1gb}"  # Minimal size
 IMAGE="${DO_IMAGE:-ubuntu-22-04-x64}"
 SSH_KEYS="${DO_SSH_KEYS:-}"  # Comma-separated list of SSH key IDs
-DOMAIN="${DOMAIN:-utils.studio}"
-SUBDOMAIN="${SUBDOMAIN:-lightclick}"
-RESERVE_IP="${RESERVE_IP:-true}"  # Reserve floating IP by default
 
 echo "Creating DigitalOcean droplet..."
 echo "Name: $DROPLET_NAME"
@@ -60,53 +57,7 @@ DROPLET_IP=$(echo "$DROPLET_OUTPUT" | awk '{print $3}')
 echo ""
 echo "✓ Droplet created successfully!"
 echo "Droplet ID: $DROPLET_ID"
-echo "Initial IP: $DROPLET_IP"
-
-# Reserve and assign floating IP
-FLOATING_IP=""
-if [ "$RESERVE_IP" = "true" ]; then
-    echo ""
-    echo "Reserving floating IP in $REGION..."
-    FLOATING_IP=$(doctl compute floating-ip create --region "$REGION" --format IP --no-header)
-    
-    if [ -n "$FLOATING_IP" ]; then
-        echo "✓ Floating IP reserved: $FLOATING_IP"
-        
-        echo "Assigning floating IP to droplet..."
-        doctl compute floating-ip-action assign "$FLOATING_IP" "$DROPLET_ID" --wait > /dev/null 2>&1
-        echo "✓ Floating IP assigned to droplet"
-        
-        # Update DROPLET_IP to use floating IP
-        DROPLET_IP="$FLOATING_IP"
-    else
-        echo "Warning: Failed to reserve floating IP"
-    fi
-fi
-
-# Create DNS record if domain is configured
-if [ -n "$DOMAIN" ] && [ -n "$SUBDOMAIN" ] && [ -n "$DROPLET_IP" ]; then
-    echo ""
-    echo "Setting up DNS record..."
-    FULL_DOMAIN="$SUBDOMAIN.$DOMAIN"
-    
-    # Check if DNS record already exists
-    EXISTING_RECORD=$(doctl compute domain records list "$DOMAIN" --format ID,Type,Name,Data --no-header 2>/dev/null | grep -E "^[0-9]+\s+A\s+$SUBDOMAIN\s+" | awk '{print $1}')
-    
-    if [ -n "$EXISTING_RECORD" ]; then
-        echo "Updating existing DNS record..."
-        doctl compute domain records update "$DOMAIN" --record-id "$EXISTING_RECORD" --record-data "$DROPLET_IP" > /dev/null 2>&1
-        echo "✓ DNS record updated: $FULL_DOMAIN -> $DROPLET_IP"
-    else
-        echo "Creating DNS record..."
-        doctl compute domain records create "$DOMAIN" --record-type A --record-name "$SUBDOMAIN" --record-data "$DROPLET_IP" --record-ttl 3600 > /dev/null 2>&1
-        echo "✓ DNS record created: $FULL_DOMAIN -> $DROPLET_IP"
-    fi
-    
-    echo ""
-    echo "Domain configured: https://$FULL_DOMAIN"
-    echo "Note: DNS propagation may take a few minutes"
-fi
-
+echo "IP Address: $DROPLET_IP"
 echo ""
 echo "Saving droplet info..."
 
@@ -116,25 +67,12 @@ cat > "$SCRIPT_DIR/droplet-info.env" << EOF
 DROPLET_ID=$DROPLET_ID
 DROPLET_NAME=$DROPLET_NAME
 DROPLET_IP=$DROPLET_IP
-FLOATING_IP=$FLOATING_IP
-DOMAIN=$DOMAIN
-SUBDOMAIN=$SUBDOMAIN
-FULL_DOMAIN=$SUBDOMAIN.$DOMAIN
+REGION=$REGION
 CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF
 
 echo "Droplet info saved to droplet/droplet-info.env"
 echo ""
-echo "✓ Setup complete!"
-echo ""
-if [ -n "$FLOATING_IP" ]; then
-    echo "Floating IP: $FLOATING_IP (reserved and assigned)"
-fi
-if [ -n "$SUBDOMAIN" ] && [ -n "$DOMAIN" ]; then
-    echo "Domain: $SUBDOMAIN.$DOMAIN"
-fi
-echo ""
 echo "Next steps:"
 echo "1. Wait 2-3 minutes for droplet to fully initialize"
-echo "2. Wait for DNS propagation (may take a few minutes)"
-echo "3. Run: ./droplet/prepare-droplet.sh"
+echo "2. Run: ./droplet/prepare-droplet.sh"

@@ -13,18 +13,76 @@ fi
 source droplet/droplet-info.env
 
 # Configuration
-DOMAIN="${APP_DOMAIN:-}"
+DOMAIN="${DOMAIN:-utils.studio}"
+SUBDOMAIN="${SUBDOMAIN:-lightclick}"
+FULL_DOMAIN="$SUBDOMAIN.$DOMAIN"
 EMAIL="${LETSENCRYPT_EMAIL:-}"
-DB_HOST="${DB_HOST:-}"
+DB_ID="${DB_ID:-}"
 
-# Use domain if set, otherwise fall back to IP
-CONNECTION_HOST="${DOMAIN:-$DROPLET_IP}"
+echo "Preparing droplet: $DROPLET_NAME (ID: $DROPLET_ID)"
+echo ""
 
-echo "Preparing droplet: $DROPLET_NAME"
-echo "Connection: $CONNECTION_HOST"
-if [ -z "$DOMAIN" ]; then
-    echo "⚠️  Warning: Using IP address. Set APP_DOMAIN for production."
+# Reserve and assign floating IP
+FLOATING_IP=""
+echo "=== Floating IP Setup ==="
+echo "Reserving floating IP in $REGION..."
+FLOATING_IP=$(doctl compute floating-ip create --region "$REGION" --format IP --no-header 2>&1)
+
+if [ -n "$FLOATING_IP" ] && [[ ! "$FLOATING_IP" =~ "Error" ]]; then
+    echo "✓ Floating IP reserved: $FLOATING_IP"
+    
+    echo "Assigning floating IP to droplet..."
+    doctl compute floating-ip-action assign "$FLOATING_IP" "$DROPLET_ID" --wait
+    echo "✓ Floating IP assigned to droplet"
+    
+    # Update droplet IP to floating IP
+    DROPLET_IP="$FLOATING_IP"
+    
+    # Update droplet-info.env with floating IP
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    cat > "$SCRIPT_DIR/droplet-info.env" << EOF
+DROPLET_ID=$DROPLET_ID
+DROPLET_NAME=$DROPLET_NAME
+DROPLET_IP=$DROPLET_IP
+FLOATING_IP=$FLOATING_IP
+REGION=$REGION
+DOMAIN=$DOMAIN
+SUBDOMAIN=$SUBDOMAIN
+FULL_DOMAIN=$FULL_DOMAIN
+CREATED_AT=$(grep CREATED_AT "$SCRIPT_DIR/droplet-info.env" | cut -d= -f2)
+EOF
+    echo "✓ Droplet info updated with floating IP"
+else
+    echo "Warning: Failed to reserve floating IP. Using droplet IP: $DROPLET_IP"
 fi
+
+echo ""
+echo "=== DNS Setup ==="
+echo "Setting up DNS for $FULL_DOMAIN..."
+
+# Check if DNS record already exists
+EXISTING_RECORD=$(doctl compute domain records list "$DOMAIN" --format ID,Type,Name,Data --no-header 2>/dev/null | grep -E "^[0-9]+\s+A\s+$SUBDOMAIN\s+" | awk '{print $1}')
+
+if [ -n "$EXISTING_RECORD" ]; then
+    echo "Updating existing DNS record..."
+    doctl compute domain records update "$DOMAIN" --record-id "$EXISTING_RECORD" --record-data "$DROPLET_IP"
+    echo "✓ DNS record updated: $FULL_DOMAIN -> $DROPLET_IP"
+else
+    echo "Creating DNS record..."
+    doctl compute domain records create "$DOMAIN" --record-type A --record-name "$SUBDOMAIN" --record-data "$DROPLET_IP" --record-ttl 3600
+    echo "✓ DNS record created: $FULL_DOMAIN -> $DROPLET_IP"
+fi
+
+echo ""
+echo "Domain: https://$FULL_DOMAIN"
+echo "Note: DNS propagation may take a few minutes"
+echo ""
+
+# Use domain for connection
+CONNECTION_HOST="$DROPLET_IP"
+
+echo "=== Droplet Configuration ==="
+echo "Connecting to: $CONNECTION_HOST"
 echo ""
 
 if [ -z "$DOMAIN" ]; then
@@ -139,40 +197,34 @@ scp -o StrictHostKeyChecking=no /tmp/prepare-script.sh root@$CONNECTION_HOST:/tm
 ssh -o StrictHostKeyChecking=no root@$CONNECTION_HOST "chmod +x /tmp/prepare-script.sh && /tmp/prepare-script.sh"
 
 # Configure Let's Encrypt if domain is set
-if [ -n "$DOMAIN" ] && [ -n "$EMAIL" ]; then
+if [ -n "$FULL_DOMAIN" ] && [ -n "$EMAIL" ]; then
     echo ""
     echo "=== Configuring Let's Encrypt SSL ==="
-    echo "Domain: $DOMAIN"
+    echo "Domain: $FULL_DOMAIN"
     
     ssh root@$CONNECTION_HOST << EOF
-certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect
+certbot --nginx -d $FULL_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect
 EOF
     
     echo "✓ SSL certificates configured successfully"
+else
+    echo ""
+    echo "Warning: LETSENCRYPT_EMAIL not set. SSL certificates not configured."
+    echo "Set LETSENCRYPT_EMAIL and run certbot manually later."
 fi
 
-# Add droplet IP to database authorized sources if DB_HOST is set
-if [ -n "$DB_HOST" ]; then
+# Add droplet IP to database authorized sources if DB_ID is set
+if [ -n "$DB_ID" ]; then
     echo ""
     echo "=== Adding droplet to database authorized sources ==="
+    echo "Adding $DROPLET_IP to database firewall..."
     
-    # Check if using DigitalOcean Managed Database
-    if command -v doctl &> /dev/null; then
-        echo "Attempting to add trusted source to DigitalOcean database..."
-        
-        # Get database info
-        DB_ID="${DB_ID:-}"
-        
-        if [ -n "$DB_ID" ]; then
-            doctl databases firewalls append "$DB_ID" --rule "ip_addr:$DROPLET_IP"
-            echo "✓ Added $DROPLET_IP to database trusted sources"
-        else
-            echo "Warning: DB_ID not set. Please manually add $DROPLET_IP to your database firewall:"
-            echo "doctl databases firewalls append <db-id> --rule \"ip_addr:$DROPLET_IP\""
-        fi
-    else
-        echo "Note: Add $DROPLET_IP to your database authorized sources manually."
-    fi
+    doctl databases firewalls append "$DB_ID" --rule "ip_addr:$DROPLET_IP"
+    echo "✓ Added $DROPLET_IP to database trusted sources"
+else
+    echo ""
+    echo "Note: DB_ID not set. If using DigitalOcean managed database, add droplet IP manually:"
+    echo "doctl databases firewalls append <db-id> --rule \"ip_addr:$DROPLET_IP\""
 fi
 
 echo ""
