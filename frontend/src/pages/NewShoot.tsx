@@ -256,7 +256,7 @@ export default function NewShoot() {
               >
                 <Upload size={36} className="sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
                 <p className="text-base sm:text-lg mb-2 text-gray-900 dark:text-gray-100">Drop your image here or click to browse</p>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Supports JPG, PNG, WebP up to 10MB</p>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Supports JPG, PNG, WebP, HEIC/HEIF up to 10MB</p>
               </div>
               
               <div className="text-center">
