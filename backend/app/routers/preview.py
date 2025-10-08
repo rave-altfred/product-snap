@@ -36,31 +36,20 @@ async def generate_preview(file: UploadFile = File(...)):
         if is_heif:
             logger.info("Opening HEIC file with pillow_heif.open_heif()...")
             try:
-                # Use low-level _pillow_heif API to bypass strict metadata validation
-                import _pillow_heif
-                heif_ctx = _pillow_heif.load_file(file_content)
-                logger.info(f"HEIC context loaded - images count: {heif_ctx.images_count}")
+                # Try using pillow_heif.open_heif() which is more forgiving
+                heif_file = pillow_heif.open_heif(file_content, convert_hdr_to_8bit=False, bgr_mode=False)
+                logger.info(f"HEIC file opened - Size: {heif_file.size}, Mode: {heif_file.mode}")
                 
-                # Get first image
-                if heif_ctx.images_count > 0:
-                    # Decode the first image
-                    heif_ctx.decode_image(0)
-                    img_data = heif_ctx.get_image_data(0)
-                    
-                    logger.info(f"HEIC decoded - Size: {img_data['width']}x{img_data['height']}, Mode: {img_data['mode']}")
-                    
-                    # Convert to PIL Image
-                    img = Image.frombytes(
-                        img_data['mode'],
-                        (img_data['width'], img_data['height']),
-                        img_data['data'],
-                        'raw'
-                    )
-                    logger.info(f"HEIC converted to PIL Image successfully")
-                else:
-                    raise ValueError("No images found in HEIC file")
+                # Convert to PIL Image
+                img = Image.frombytes(
+                    heif_file.mode,
+                    heif_file.size,
+                    heif_file.data,
+                    'raw'
+                )
+                logger.info(f"HEIC converted to PIL Image successfully")
             except Exception as e:
-                logger.error(f"Failed to decode HEIC with low-level API: {e}")
+                logger.error(f"Failed to decode HEIC with open_heif: {e}")
                 # Last resort: Try with PIL + registered opener
                 try:
                     image_stream.seek(0)

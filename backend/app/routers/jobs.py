@@ -72,32 +72,22 @@ async def create_job(
         is_heif = file.filename and (file.filename.lower().endswith('.heic') or file.filename.lower().endswith('.heif'))
         
         if is_heif:
-            # Use low-level _pillow_heif API to bypass strict metadata validation
-            logger.info("Decoding HEIC file with _pillow_heif low-level API...")
-            import _pillow_heif
-            heif_ctx = _pillow_heif.load_file(file_content)
-            logger.info(f"HEIC context loaded - images count: {heif_ctx.images_count}")
+            # Use pillow_heif.open_heif() which is more forgiving with metadata
+            logger.info("Decoding HEIC file with pillow_heif.open_heif()...")
+            heif_file = pillow_heif.open_heif(file_content, convert_hdr_to_8bit=False, bgr_mode=False)
             
-            if heif_ctx.images_count > 0:
-                # Decode the first image
-                heif_ctx.decode_image(0)
-                img_data = heif_ctx.get_image_data(0)
-                
-                width = img_data['width']
-                height = img_data['height']
-                logger.info(f"HEIC decoded - Size: {width}x{height}, Mode: {img_data['mode']}")
-                
-                # Validate dimensions
-                if width < settings.MIN_IMAGE_WIDTH or height < settings.MIN_IMAGE_HEIGHT:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Image dimensions too small. Minimum required: {settings.MIN_IMAGE_WIDTH}x{settings.MIN_IMAGE_HEIGHT}px, got: {width}x{height}px"
-                    )
-                
-                # Skip the rest of validation for HEIC since we've already decoded it
-                img_format = 'HEIF'
-            else:
-                raise ValueError("No images found in HEIC file")
+            width, height = heif_file.size
+            logger.info(f"HEIC decoded - Size: {width}x{height}, Mode: {heif_file.mode}")
+            
+            # Validate dimensions
+            if width < settings.MIN_IMAGE_WIDTH or height < settings.MIN_IMAGE_HEIGHT:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Image dimensions too small. Minimum required: {settings.MIN_IMAGE_WIDTH}x{settings.MIN_IMAGE_HEIGHT}px, got: {width}x{height}px"
+                )
+            
+            # Skip the rest of validation for HEIC since we've already decoded it
+            img_format = 'HEIF'
         else:
             # Reset file position and validate image
             image_stream = io.BytesIO(file_content)
