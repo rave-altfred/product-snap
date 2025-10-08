@@ -1,341 +1,313 @@
-# Droplet Management Scripts
+# ProductSnap Deployment Guide
 
-This directory contains scripts for managing DigitalOcean droplets for the Product Snap application.
+This directory contains scripts and configuration for deploying ProductSnap to a DigitalOcean droplet.
+
+## Architecture Overview
+
+**Services on Droplet:**
+- `backend` - FastAPI backend service
+- `frontend` - React frontend (Vite build served by Nginx)
+- `worker` - Background job processor
+- `redis` - Local Redis instance for caching/queues
+- `nginx` - Reverse proxy and SSL termination
+
+**External Services (DigitalOcean Managed):**
+- PostgreSQL Database (Managed Database)
+- Spaces (S3-compatible object storage)
 
 ## Prerequisites
 
-1. **Install doctl** (DigitalOcean CLI)
+1. **DigitalOcean CLI (`doctl`)**
    ```bash
    brew install doctl
-   ```
-
-2. **Authenticate with DigitalOcean**
-   ```bash
    doctl auth init
    ```
 
-3. **Set up a Container Registry**
-   - Go to DigitalOcean Console → Container Registry
-   - Create a registry if you don't have one
-   - Note your registry namespace
+2. **Docker** - For building images locally
 
-4. **Set up a Secret Manager** (Recommended)
-   - Use 1Password, Vault, or similar for secrets management
-   - Never commit secrets to git
+3. **SSH Key** - Added to your DigitalOcean account
 
-## Environment Variables
+4. **External Services Setup:**
+   - Create a DigitalOcean Managed PostgreSQL database
+   - Create a Spaces bucket for file storage
+   - Note down connection details
 
-Create a `.env` file or export these in your shell:
+## Initial Setup
 
+### 1. Configure Settings
+
+Edit `droplet/config.env`:
 ```bash
-# Required
-export DO_REGISTRY_NAMESPACE="your-registry-namespace"
+# Set your DigitalOcean registry namespace
+DO_REGISTRY_NAMESPACE=your-registry-name
 
-# Optional
-export DROPLET_NAME="product-snap-app"
-export DO_REGION="nyc3"
-export DO_SIZE="s-1vcpu-1gb"  # Start minimal, resize later
-export APP_DOMAIN="your-domain.com"
-export LETSENCRYPT_EMAIL="your-email@example.com"
-export DB_ID="your-database-id"  # For DigitalOcean managed databases
-export APP_PORT="3000"
+# Set your domain
+DOMAIN=yourdomain.com
+SUBDOMAIN=app
 
-# Application Secrets (load from secret manager)
-export DATABASE_URL=$(op read "op://vault/product-snap/DATABASE_URL")
-export API_KEY=$(op read "op://vault/product-snap/API_KEY")
-export JWT_SECRET=$(op read "op://vault/product-snap/JWT_SECRET")
-export NEXTAUTH_SECRET=$(op read "op://vault/product-snap/NEXTAUTH_SECRET")
+# Other settings as needed
 ```
 
-## Usage
+### 2. Create Production Environment File
 
-### 1. Create Droplet
+```bash
+# Copy template
+cp droplet/.env.production.template droplet/.env.production
 
-Creates a minimal DigitalOcean droplet. You can resize it later as needed.
+# Edit with your values
+nano droplet/.env.production
+```
+
+**Required Variables:**
+- `DATABASE_URL` - PostgreSQL connection string from DO Managed Database
+- `JWT_SECRET` - Generate with: `openssl rand -base64 32`
+- `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` - From DO Spaces
+- `PAYPAL_*` - PayPal API credentials
+- `SMTP_*` - Email service credentials
+
+### 3. Create Droplet (Optional - if not already created)
 
 ```bash
 ./droplet/create-droplet.sh
 ```
 
 This will:
-- Create a droplet with minimal specs
-- Save droplet info to `droplet/droplet-info.env`
-- Output the droplet IP address
+- Create a new droplet
+- Install Docker and Docker Compose
+- Configure firewall
+- Save droplet info to `droplet-info.env`
 
-### 2. Prepare Droplet
+## Deployment Workflow
 
-Configures the droplet with security best practices, HTTPS, and Docker.
-
-```bash
-# Set required environment variables first
-export APP_DOMAIN="your-domain.com"
-export LETSENCRYPT_EMAIL="your-email@example.com"
-export DB_ID="your-database-id"  # Optional
-
-./droplet/prepare-droplet.sh
-```
-
-This will:
-- Update system packages
-- Install Docker, Nginx, Certbot, UFW, Fail2Ban
-- Configure firewall (allow SSH, HTTP, HTTPS)
-- Harden SSH configuration (disable password auth)
-- Set up Nginx as reverse proxy
-- Configure Let's Encrypt SSL certificates (if domain is set)
-- Add droplet IP to database authorized sources (if DB_ID is set)
-
-### 3. Build Docker Image
-
-Builds your Docker image with proper secrets management, platform targeting, and layer caching.
+### Complete Deployment (All Services)
 
 ```bash
-# Load secrets from your secret manager
-export DATABASE_URL=$(op read "op://vault/product-snap/DATABASE_URL")
-export API_KEY=$(op read "op://vault/product-snap/API_KEY")
-export JWT_SECRET=$(op read "op://vault/product-snap/JWT_SECRET")
-export NEXTAUTH_SECRET=$(op read "op://vault/product-snap/NEXTAUTH_SECRET")
-
+# 1. Build all images
 ./droplet/build.sh
-```
 
-This will:
-- Build for the correct platform (linux/amd64 for DigitalOcean droplets)
-- Use Docker BuildKit with optimized layer caching
-- Pull and use cache from registry for faster builds
-- Mount secrets securely (not in env or image layers)
-- Tag image for DigitalOcean Container Registry
-- Create `.dockerignore` if needed
-- Create and tag cache image for subsequent builds
-
-**Build Optimizations:**
-
-1. **Platform Targeting**: Automatically builds for `linux/amd64` (standard for DigitalOcean)
-   - On Apple Silicon Macs, uses emulation automatically
-   - Override with: `BUILD_PLATFORM=linux/arm64 ./droplet/build.sh`
-
-2. **Registry-Based Caching** (Default - Recommended):
-   - Pulls cache from registry before building
-   - Subsequent builds are 5-10x faster
-   - Works across machines and in CI/CD
-   - Best for team development
-
-3. **Local Caching** (Alternative):
-   - Uses only local Docker cache
-   - Faster for solo development
-   - Enable with: `CACHE_FROM_REGISTRY=false ./droplet/build.sh`
-
-4. **No Cache** (For troubleshooting):
-   - Forces clean build
-   - Use when cache is causing issues
-   - Enable with: `USE_CACHE=false ./droplet/build.sh`
-
-**Dockerfile Requirements:**
-
-Your Dockerfile should follow these best practices (see `Dockerfile.example`):
-
-```dockerfile
-# syntax=docker/dockerfile:1
-# Multi-stage build for optimal layer caching
-
-# Stage 1: Dependencies (cached when package.json unchanged)
-FROM node:18-alpine AS deps
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# Stage 2: Builder (uses secrets)
-FROM deps AS builder
-COPY . .
-RUN --mount=type=secret,id=DATABASE_URL \
-    export DATABASE_URL=$(cat /run/secrets/DATABASE_URL) && \
-    npm run build
-
-# Stage 3: Production runtime (minimal)
-FROM node:18-alpine AS runner
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-CMD ["npm", "start"]
-```
-
-**Key Optimization Principles:**
-- Copy package files BEFORE source code
-- Install dependencies in a separate stage
-- Use multi-stage builds to reduce final image size
-- Place frequently changing code in later layers
-
-### 4. Push to Registry
-
-Pushes the built image and cache to DigitalOcean Container Registry.
-
-```bash
+# 2. Push to registry
 ./droplet/push.sh
-```
 
-This will:
-- Authenticate with DigitalOcean Container Registry
-- Push the Docker image
-- Push the cache image (for faster subsequent builds)
-- Verify the upload
-
-**Cache Management:**
-- Cache is pushed by default for team/CI benefits
-- Skip cache push: `PUSH_CACHE=false ./droplet/push.sh`
-- First build has no cache (normal)
-- Subsequent builds reuse cache from registry
-
-### 5. Deploy to Droplet
-
-Deploys your application to the prepared droplet.
-
-```bash
-# Ensure secrets are loaded
-export DATABASE_URL=$(op read "op://vault/product-snap/DATABASE_URL")
-export API_KEY=$(op read "op://vault/product-snap/API_KEY")
-export JWT_SECRET=$(op read "op://vault/product-snap/JWT_SECRET")
-export NEXTAUTH_SECRET=$(op read "op://vault/product-snap/NEXTAUTH_SECRET")
-
+# 3. Deploy to droplet
 ./droplet/deploy.sh
 ```
 
-This will:
-- Upload docker-compose.yml to droplet
-- Configure Docker registry authentication on droplet
-- Securely transfer secrets to droplet
-- Pull latest image
-- Start application with docker-compose
-- Show deployment logs
+### Selective Service Deployment
 
-## Complete Workflow
+Deploy only specific services:
 
 ```bash
-# 1. Set up environment
-export DO_REGISTRY_NAMESPACE="your-namespace"
-export APP_DOMAIN="your-domain.com"
-export LETSENCRYPT_EMAIL="your@email.com"
+# Build only backend
+SERVICES='backend' ./droplet/build.sh
 
-# 2. Create and prepare droplet
-./droplet/create-droplet.sh
-./droplet/prepare-droplet.sh
+# Push only backend
+SERVICES='backend' ./droplet/push.sh
 
-# 3. Load secrets and build
-export DATABASE_URL=$(op read "op://vault/product-snap/DATABASE_URL")
-export API_KEY=$(op read "op://vault/product-snap/API_KEY")
-export JWT_SECRET=$(op read "op://vault/product-snap/JWT_SECRET")
-export NEXTAUTH_SECRET=$(op read "op://vault/product-snap/NEXTAUTH_SECRET")
-
-# 4. Build, push, and deploy
-./droplet/build.sh
-./droplet/push.sh
-./droplet/deploy.sh
+# Deploy only backend (will restart only this service)
+SERVICES='backend' ./droplet/deploy.sh
 ```
 
-## Managing Your Droplet
+### Quick Update Workflow
+
+For quick code changes without rebuilding everything:
+
+```bash
+# Build and deploy just the backend
+SERVICES='backend' ./droplet/build.sh && \
+SERVICES='backend' ./droplet/push.sh && \
+SERVICES='backend' ./droplet/deploy.sh
+```
+
+## Script Details
+
+### `build.sh`
+Builds Docker images for services.
+
+**Options:**
+- `SERVICES='backend frontend'` - Build specific services
+- `BUILD_PLATFORM=linux/amd64` - Target platform
+- `USE_CACHE=false` - Disable Docker cache
+- `TAG=v1.0.0` - Custom image tag
+
+**Examples:**
+```bash
+# Build all with custom tag
+TAG=v1.0.0 ./droplet/build.sh
+
+# Build only frontend without cache
+SERVICES='frontend' USE_CACHE=false ./droplet/build.sh
+```
+
+### `push.sh`
+Pushes built images to DigitalOcean Container Registry.
+
+**Options:**
+- `SERVICES='backend'` - Push specific services
+- `PUSH_CACHE=false` - Skip pushing cache images
+- `TAG=v1.0.0` - Push specific tag
+
+**Examples:**
+```bash
+# Push specific version
+TAG=v1.0.0 ./droplet/push.sh
+
+# Push without cache
+PUSH_CACHE=false ./droplet/push.sh
+```
+
+### `deploy.sh`
+Deploys services to the droplet using docker-compose.
+
+**Options:**
+- `SERVICES='backend frontend'` - Deploy specific services
+- `TAG=v1.0.0` - Deploy specific version
+
+**Examples:**
+```bash
+# Deploy specific version
+TAG=v1.0.0 ./droplet/deploy.sh
+
+# Deploy only worker
+SERVICES='worker' ./droplet/deploy.sh
+```
+
+## Managing the Droplet
 
 ### View Logs
+
 ```bash
+# All services
 ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs -f'
+
+# Specific service
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs -f backend'
+
+# Last 100 lines
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs --tail=100'
 ```
 
-### Restart Application
+### Service Management
+
 ```bash
+# Check status
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose ps'
+
+# Restart service
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose restart backend'
+
+# Restart all
 ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose restart'
-```
 
-### Stop Application
-```bash
+# Stop all
 ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose down'
+
+# Start all
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose up -d'
 ```
 
-### Check Status
+### Database Migrations
+
+```bash
+# Run migrations
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend alembic upgrade head'
+
+# Create migration
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend alembic revision --autogenerate -m "description"'
+```
+
+### Shell Access
+
+```bash
+# Backend shell
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend bash'
+
+# Redis CLI
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec redis redis-cli'
+
+# View environment
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend env'
+```
+
+## Troubleshooting
+
+### Check Service Health
+
 ```bash
 ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose ps'
 ```
 
-### Update Application
-```bash
-# Build and push new version
-./droplet/build.sh
-./droplet/push.sh
+### View Recent Errors
 
-# Deploy update
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose pull && docker-compose up -d'
+```bash
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs --tail=50 backend | grep ERROR'
 ```
 
-### Resize Droplet
-```bash
-# Get droplet ID
-source droplet/droplet-info.env
+### Restart Everything
 
-# Resize (requires power off)
-doctl compute droplet-action power-off $DROPLET_ID --wait
-doctl compute droplet-action resize $DROPLET_ID --size s-2vcpu-4gb --wait
-doctl compute droplet-action power-on $DROPLET_ID --wait
+```bash
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose down && docker-compose up -d'
+```
+
+### Clean Up Docker
+
+```bash
+# Remove unused images
+ssh root@<DROPLET_IP> 'docker image prune -f'
+
+# Remove unused volumes (careful!)
+ssh root@<DROPLET_IP> 'docker volume prune -f'
+
+# Full cleanup
+ssh root@<DROPLET_IP> 'docker system prune -af'
+```
+
+### Registry Authentication Issues
+
+```bash
+# Re-authenticate with registry
+doctl registry login
+
+# Update droplet registry credentials
+REGISTRY_TOKEN=$(doctl registry docker-config --read-write)
+ssh root@<DROPLET_IP> "echo '$REGISTRY_TOKEN' > /root/.docker/config.json"
+```
+
+## Files Overview
+
+```
+droplet/
+├── config.env                    # Manual configuration
+├── droplet-info.env             # Auto-generated (gitignored)
+├── .env.production              # Production secrets (gitignored)
+├── .env.production.template     # Template for production env
+├── docker-compose.prod.yml      # Production compose file
+├── build.sh                     # Build images
+├── push.sh                      # Push to registry
+├── deploy.sh                    # Deploy to droplet
+├── create-droplet.sh            # Create new droplet
+├── prepare-droplet.sh           # Setup existing droplet
+└── README.md                    # This file
 ```
 
 ## Security Best Practices
 
-1. **Never commit secrets** - Always use a secret manager
-2. **Use SSH keys only** - Password authentication is disabled
-3. **Keep packages updated** - Regularly run system updates
-4. **Monitor logs** - Check application and system logs regularly
-5. **Use HTTPS** - Always configure SSL certificates
-6. **Firewall rules** - Only open necessary ports
-7. **Backup database** - Regular automated backups
-8. **Use private networking** - For database connections when possible
+1. **Never commit** `.env.production` or `droplet-info.env`
+2. **Rotate secrets** regularly (JWT_SECRET, API keys)
+3. **Use strong passwords** for database and services
+4. **Enable SSL** in production (configure nginx)
+5. **Restrict database access** to droplet IP only
+6. **Keep droplet updated**: `ssh root@<IP> 'apt update && apt upgrade -y'`
+7. **Monitor logs** for suspicious activity
+8. **Backup database** regularly (DigitalOcean automated backups)
 
-## Troubleshooting
+## Environment Variables Reference
 
-### Can't connect to droplet
-```bash
-# Check droplet status
-doctl compute droplet list
+See `.env.production.template` for all available environment variables and their descriptions.
 
-# Check firewall rules
-ssh root@<DROPLET_IP> 'ufw status verbose'
-```
+## Support
 
-### SSL certificate issues
-```bash
-# Check certificate status
-ssh root@<DROPLET_IP> 'certbot certificates'
-
-# Renew certificates
-ssh root@<DROPLET_IP> 'certbot renew'
-```
-
-### Docker registry authentication issues
-```bash
-# Re-authenticate locally
-doctl registry login
-
-# Re-authenticate on droplet
-doctl registry docker-config | ssh root@<DROPLET_IP> 'cat > /root/.docker/config.json'
-```
-
-### Application not starting
-```bash
-# Check logs
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs'
-
-# Check container status
-ssh root@<DROPLET_IP> 'docker ps -a'
-
-# Check secrets
-ssh root@<DROPLET_IP> 'ls -la /opt/product-snap/secrets/'
-```
-
-## Files
-
-- `create-droplet.sh` - Creates a new DigitalOcean droplet
-- `prepare-droplet.sh` - Configures droplet with security and services
-- `build.sh` - Builds Docker image with secrets
-- `push.sh` - Pushes image to DigitalOcean Container Registry
-- `deploy.sh` - Deploys application to droplet
-- `droplet-info.env` - Generated file with droplet details (not committed)
-
-## Notes
-
-- Start with minimal droplet size and resize as needed
-- All scripts include error checking and validation
-- Scripts are idempotent where possible
-- Secrets are never written to disk in plain text (except in secure locations on droplet)
-- Docker secrets are mounted as files, not environment variables
+For issues or questions:
+1. Check the logs: `docker-compose logs`
+2. Verify service health: `docker-compose ps`
+3. Check this README for common solutions
+4. Review DigitalOcean documentation

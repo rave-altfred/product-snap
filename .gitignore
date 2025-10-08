@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.production
+droplet/.env.production
+droplet/droplet-info.env
 
 # OS
 .DS_Store

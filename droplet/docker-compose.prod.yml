@@ -1,0 +1,216 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  backend:
+    image: ${REGISTRY}/${REGISTRY_NAMESPACE}/${PROJECT_NAME}-backend:${TAG}
+    container_name: ${PROJECT_NAME}-backend
+    restart: unless-stopped
+    environment:
+      # Database (External - DigitalOcean Managed)
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # Redis (can be local or external)
+      REDIS_URL: redis://redis:6379/0
+      
+      # App Config
+      APP_NAME: ${APP_NAME:-ProductSnap}
+      FRONTEND_URL: ${FRONTEND_URL}
+      BACKEND_URL: ${BACKEND_URL}
+      
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      
+      # External APIs
+      NANO_BANANA_API_KEY: ${NANO_BANANA_API_KEY}
+      
+      # S3/Spaces Storage (DigitalOcean Spaces)
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      
+      # PayPal
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      PAYPAL_MODE: ${PAYPAL_MODE:-live}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+      PAYPAL_PLAN_ID_BASIC_MONTHLY: ${PAYPAL_PLAN_ID_BASIC_MONTHLY}
+      PAYPAL_PLAN_ID_BASIC_YEARLY: ${PAYPAL_PLAN_ID_BASIC_YEARLY}
+      PAYPAL_PLAN_ID_PRO_MONTHLY: ${PAYPAL_PLAN_ID_PRO_MONTHLY}
+      PAYPAL_PLAN_ID_PRO_YEARLY: ${PAYPAL_PLAN_ID_PRO_YEARLY}
+      
+      # Email/SMTP
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      
+      # Google OAuth (optional)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - app-network
+
+  # Background Worker
+  worker:
+    image: ${REGISTRY}/${REGISTRY_NAMESPACE}/${PROJECT_NAME}-worker:${TAG}
+    container_name: ${PROJECT_NAME}-worker
+    restart: unless-stopped
+    command: python -m app.worker
+    environment:
+      # Database (External - DigitalOcean Managed)
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      
+      # External APIs
+      NANO_BANANA_API_KEY: ${NANO_BANANA_API_KEY}
+      
+      # S3/Spaces Storage
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      
+      # PayPal
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      PAYPAL_MODE: ${PAYPAL_MODE:-live}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+      PAYPAL_PLAN_ID_BASIC_MONTHLY: ${PAYPAL_PLAN_ID_BASIC_MONTHLY}
+      PAYPAL_PLAN_ID_BASIC_YEARLY: ${PAYPAL_PLAN_ID_BASIC_YEARLY}
+      PAYPAL_PLAN_ID_PRO_MONTHLY: ${PAYPAL_PLAN_ID_PRO_MONTHLY}
+      PAYPAL_PLAN_ID_PRO_YEARLY: ${PAYPAL_PLAN_ID_PRO_YEARLY}
+      
+      # Email/SMTP
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - app-network
+
+  # React Frontend
+  frontend:
+    image: ${REGISTRY}/${REGISTRY_NAMESPACE}/${PROJECT_NAME}-frontend:${TAG}
+    container_name: ${PROJECT_NAME}-frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - app-network
+
+  # Redis Cache/Queue (Local instance on droplet)
+  redis:
+    image: redis:7-alpine
+    container_name: ${PROJECT_NAME}-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    networks:
+      - app-network
+
+  # NGINX Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ${PROJECT_NAME}-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - app-network
+
+volumes:
+  redis_data:
+    driver: local
+  nginx_cache:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

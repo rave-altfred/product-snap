@@ -2,7 +2,13 @@
 set -e
 
 # Deployment Script
-# Deploys application to DigitalOcean droplet using Docker Compose
+# Deploys multi-service application to DigitalOcean droplet using Docker Compose
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
 # Load config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,7 +18,7 @@ fi
 
 # Load droplet info
 if [ ! -f "$SCRIPT_DIR/droplet-info.env" ]; then
-    echo "Error: droplet-info.env not found. Please run create-droplet.sh first."
+    echo -e "${RED}Error: droplet-info.env not found. Please run create-droplet.sh first.${NC}"
     exit 1
 fi
 source "$SCRIPT_DIR/droplet-info.env"
@@ -20,190 +26,208 @@ source "$SCRIPT_DIR/droplet-info.env"
 # Configuration
 REGISTRY="${DO_REGISTRY:-registry.digitalocean.com}"
 REGISTRY_NAMESPACE="${DO_REGISTRY_NAMESPACE:-}"
+PROJECT_NAME="${PROJECT_NAME:-product-snap}"
 TAG="${IMAGE_TAG:-latest}"
-APP_PORT="${APP_PORT:-3000}"
+SERVICES="${SERVICES:-backend frontend worker}"
+APP_DIR="/opt/$PROJECT_NAME"
 
-echo "Deploying to droplet: $DROPLET_NAME ($DROPLET_IP)"
+echo "=========================================="
+echo "ProductSnap Deployment"
+echo "=========================================="
+echo "Droplet: $DROPLET_NAME ($DROPLET_IP)"
+echo "Services: $SERVICES"
+echo "Tag: $TAG"
 echo ""
 
 # Validate registry namespace
 if [ -z "$REGISTRY_NAMESPACE" ]; then
-    echo "Error: DO_REGISTRY_NAMESPACE is not set."
+    echo -e "${RED}Error: DO_REGISTRY_NAMESPACE is not set.${NC}"
+    echo "Please set it in droplet/config.env"
     exit 1
 fi
 
-FULL_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:$TAG"
+# Check if production env file exists
+if [ ! -f "$SCRIPT_DIR/.env.production" ]; then
+    echo -e "${RED}Error: .env.production not found!${NC}"
+    echo ""
+    echo "Please create it from the template:"
+    echo "  cp $SCRIPT_DIR/.env.production.template $SCRIPT_DIR/.env.production"
+    echo ""
+    echo "Then edit .env.production and fill in all the required values."
+    exit 1
+fi
+
+# Validate .env.production has required variables
+echo "Validating production environment configuration..."
+REQUIRED_VARS=(
+    "DATABASE_URL"
+    "JWT_SECRET"
+    "S3_ENDPOINT"
+    "S3_BUCKET"
+    "S3_ACCESS_KEY"
+    "S3_SECRET_KEY"
+)
+
+MISSING_VARS=()
+while IFS= read -r line; do
+    # Skip comments and empty lines
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+    
+    # Extract variable name
+    VAR_NAME="${line%%=*}"
+    VAR_VALUE="${line#*=}"
+    
+    # Check if it's in required vars and empty
+    for req_var in "${REQUIRED_VARS[@]}"; do
+        if [ "$VAR_NAME" = "$req_var" ] && [ -z "$VAR_VALUE" ]; then
+            MISSING_VARS+=("$req_var")
+        fi
+    done
+done < "$SCRIPT_DIR/.env.production"
+
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+    echo -e "${RED}Error: The following required variables are not set in .env.production:${NC}"
+    for var in "${MISSING_VARS[@]}"; do
+        echo "  - $var"
+    done
+    echo ""
+    echo "Please edit $SCRIPT_DIR/.env.production and set these values."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Configuration validated${NC}"
+echo ""
 
 # Check if doctl is installed
 if ! command -v doctl &> /dev/null; then
-    echo "Error: doctl is not installed. Please install it first:"
+    echo -e "${RED}Error: doctl is not installed. Please install it first:${NC}"
     echo "brew install doctl"
     exit 1
 fi
 
-echo "Creating docker-compose.yml for deployment..."
-
-# Create docker-compose configuration
-cat > /tmp/docker-compose.yml << EOF
-version: '3.8'
-
-services:
-  app:
-    image: $FULL_IMAGE_NAME
-    container_name: product-snap-app
-    restart: unless-stopped
-    ports:
-      - "$APP_PORT:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-    secrets:
-      - database_url
-      - api_key
-      - jwt_secret
-      - nextauth_secret
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-secrets:
-  database_url:
-    file: /opt/product-snap/secrets/DATABASE_URL
-  api_key:
-    file: /opt/product-snap/secrets/API_KEY
-  jwt_secret:
-    file: /opt/product-snap/secrets/JWT_SECRET
-  nextauth_secret:
-    file: /opt/product-snap/secrets/NEXTAUTH_SECRET
-EOF
-
-echo "Preparing deployment secrets..."
-
-# Create secrets deployment script
-cat > /tmp/deploy-secrets.sh << 'SECRETS_SCRIPT'
-#!/bin/bash
-set -e
-
-# Create secrets directory
-mkdir -p /opt/product-snap/secrets
-chmod 700 /opt/product-snap/secrets
-
-# Note: Secrets should be provided via environment variables
-# These can be set from a secure source like 1Password, Vault, etc.
-
-SECRET_VARS=(
-    "DATABASE_URL"
-    "API_KEY"
-    "JWT_SECRET"
-    "NEXTAUTH_SECRET"
-)
-
-echo "Writing secrets to files..."
-for var in "${SECRET_VARS[@]}"; do
-    SECRET_VALUE="${!var}"
-    if [ -n "$SECRET_VALUE" ]; then
-        echo "Writing $var"
-        echo -n "$SECRET_VALUE" > "/opt/product-snap/secrets/$var"
-        chmod 600 "/opt/product-snap/secrets/$var"
-    else
-        echo "Warning: $var not provided"
-    fi
-done
-
-echo "Secrets configured successfully"
-SECRETS_SCRIPT
-
-echo "Uploading deployment files to droplet..."
-scp -o StrictHostKeyChecking=no /tmp/docker-compose.yml root@$DROPLET_IP:/opt/product-snap/docker-compose.yml
-scp -o StrictHostKeyChecking=no /tmp/deploy-secrets.sh root@$DROPLET_IP:/opt/product-snap/deploy-secrets.sh
-
-echo "Authenticating droplet with container registry..."
-ssh root@$DROPLET_IP << 'EOF'
-# Install doctl if not present
-if ! command -v doctl &> /dev/null; then
-    cd /tmp
-    wget -q https://github.com/digitalocean/doctl/releases/download/v1.98.0/doctl-1.98.0-linux-amd64.tar.gz
-    tar xf doctl-1.98.0-linux-amd64.tar.gz
-    mv doctl /usr/local/bin/
-    rm doctl-1.98.0-linux-amd64.tar.gz
+# Check SSH connectivity
+echo "Testing SSH connection to droplet..."
+if ! ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@$DROPLET_IP "echo 'Connection successful'" &> /dev/null; then
+    echo -e "${RED}Error: Cannot connect to droplet via SSH${NC}"
+    echo "Please ensure:"
+    echo "  1. The droplet is running"
+    echo "  2. Your SSH key is added to the droplet"
+    echo "  3. The IP address is correct: $DROPLET_IP"
+    exit 1
 fi
-EOF
+echo -e "${GREEN}✓ SSH connection successful${NC}"
+echo ""
+
+echo "Authenticating with DigitalOcean Container Registry..."
+doctl registry login
+
+echo "Preparing deployment files..."
+
+# Copy docker-compose template
+cp "$SCRIPT_DIR/docker-compose.prod.yml" /tmp/docker-compose.yml
+
+# Copy production env file
+cp "$SCRIPT_DIR/.env.production" /tmp/.env.production
+
+echo "Uploading files to droplet..."
+ssh root@$DROPLET_IP "mkdir -p $APP_DIR/nginx/conf.d $APP_DIR/nginx/ssl"
+
+# Upload docker-compose and env
+scp -o StrictHostKeyChecking=no /tmp/docker-compose.yml root@$DROPLET_IP:$APP_DIR/docker-compose.yml
+scp -o StrictHostKeyChecking=no /tmp/.env.production root@$DROPLET_IP:$APP_DIR/.env.production
+
+# Upload nginx configs if they exist
+if [ -d "$SCRIPT_DIR/../nginx" ]; then
+    echo "Uploading nginx configuration..."
+    if [ -f "$SCRIPT_DIR/../nginx/nginx.conf" ]; then
+        scp -o StrictHostKeyChecking=no "$SCRIPT_DIR/../nginx/nginx.conf" root@$DROPLET_IP:$APP_DIR/nginx/nginx.conf
+    fi
+    if [ -d "$SCRIPT_DIR/../nginx/conf.d" ]; then
+        scp -o StrictHostKeyChecking=no -r "$SCRIPT_DIR/../nginx/conf.d/"* root@$DROPLET_IP:$APP_DIR/nginx/conf.d/ 2>/dev/null || true
+    fi
+fi
 
 echo "Configuring registry authentication on droplet..."
 # Get registry credentials and configure on droplet
 REGISTRY_TOKEN=$(doctl registry docker-config --read-write)
-ssh root@$DROPLET_IP "echo '$REGISTRY_TOKEN' > /root/.docker/config.json"
+ssh root@$DROPLET_IP "mkdir -p /root/.docker && echo '$REGISTRY_TOKEN' > /root/.docker/config.json"
 
 echo ""
-echo "Deploying secrets (you'll need to provide them)..."
-echo "Please ensure the following environment variables are set with your secrets:"
-echo "  - DATABASE_URL"
-echo "  - API_KEY"
-echo "  - JWT_SECRET"
-echo "  - NEXTAUTH_SECRET"
+echo "=========================================="
+echo "Deploying to droplet..."
+echo "=========================================="
+
+# Deploy on droplet
+ssh root@$DROPLET_IP bash << EOF
+set -e
+cd $APP_DIR
+
+echo "Pulling latest images..."
+export \$(cat .env.production | grep -v '^#' | xargs)
+
+# Pull all service images
+for service in $SERVICES; do
+    IMAGE_NAME="$PROJECT_NAME-\$service"
+    FULL_IMAGE="$REGISTRY/$REGISTRY_NAMESPACE/\$IMAGE_NAME:$TAG"
+    echo "Pulling \$FULL_IMAGE..."
+    docker pull "\$FULL_IMAGE"
+done
+
 echo ""
-read -p "Have you set these environment variables? (y/N) " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Please set the required environment variables and run this script again."
-    echo ""
-    echo "Example:"
-    echo "export DATABASE_URL=\$(op read 'op://vault/item/DATABASE_URL')  # Using 1Password"
-    echo "export API_KEY=\$(op read 'op://vault/item/API_KEY')"
-    echo "# ... set other secrets ..."
-    echo ""
-    echo "Then run: ./droplet/deploy.sh"
-    exit 1
-fi
-
-# Deploy secrets to droplet
-echo "Deploying secrets to droplet..."
-ssh root@$DROPLET_IP "bash -s" < /tmp/deploy-secrets.sh << SECRETS_EOF
-export DATABASE_URL="$DATABASE_URL"
-export API_KEY="$API_KEY"
-export JWT_SECRET="$JWT_SECRET"
-export NEXTAUTH_SECRET="$NEXTAUTH_SECRET"
-SECRETS_EOF
-
-echo "Pulling latest image and deploying..."
-ssh root@$DROPLET_IP << EOF
-cd /opt/product-snap
-
-# Pull the latest image
-docker pull $FULL_IMAGE_NAME
-
-# Stop and remove old containers
+echo "Stopping existing containers..."
 docker-compose down || true
 
-# Start the application
-docker-compose up -d
-
-# Show logs
 echo ""
-echo "Deployment complete! Showing recent logs:"
-docker-compose logs --tail=50
+echo "Starting services..."
+docker-compose --env-file .env.production up -d
+
+echo ""
+echo "Waiting for services to be healthy..."
+sleep 10
+
+echo ""
+echo "Service status:"
+docker-compose ps
+
+echo ""
+echo "Checking service health..."
+docker-compose ps --format json | jq -r '.[] | "\(.Service): \(.State)"' 2>/dev/null || docker-compose ps
+
 EOF
 
 echo ""
-echo "✓ Deployment successful!"
+echo "=========================================="
+echo -e "${GREEN}✓ Deployment Complete!${NC}"
+echo "=========================================="
+
+# Get deployment status
 echo ""
-echo "Application is running at:"
+echo "Current status:"
+ssh root@$DROPLET_IP "cd $APP_DIR && docker-compose ps"
+
+echo ""
+echo "Application URLs:"
 if [ -n "$APP_DOMAIN" ]; then
-    echo "  https://$APP_DOMAIN"
+    echo -e "  Frontend: ${GREEN}https://$APP_DOMAIN${NC}"
+    echo -e "  Backend:  ${GREEN}https://$APP_DOMAIN/api${NC}"
+    echo -e "  Health:   ${GREEN}https://$APP_DOMAIN/health${NC}"
 else
-    echo "  http://$DROPLET_IP:$APP_PORT"
+    echo -e "  Frontend: ${GREEN}http://$DROPLET_IP${NC}"
+    echo -e "  Backend:  ${GREEN}http://$DROPLET_IP/api${NC}"
+    echo -e "  Health:   ${GREEN}http://$DROPLET_IP/health${NC}"
 fi
+
 echo ""
 echo "Useful commands:"
-echo "  View logs: ssh root@$DROPLET_IP 'cd /opt/product-snap && docker-compose logs -f'"
-echo "  Restart:   ssh root@$DROPLET_IP 'cd /opt/product-snap && docker-compose restart'"
-echo "  Stop:      ssh root@$DROPLET_IP 'cd /opt/product-snap && docker-compose down'"
-echo "  Status:    ssh root@$DROPLET_IP 'cd /opt/product-snap && docker-compose ps'"
+echo "  View logs:    ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose logs -f'"
+echo "  View service: ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose logs -f backend'"
+echo "  Restart all:  ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose restart'"
+echo "  Stop all:     ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose down'"
+echo "  Status:       ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose ps'"
+echo ""
+echo "Deployment options:"
+echo "  Deploy specific: SERVICES='backend' ./droplet/deploy.sh"
+echo "  Different tag:   TAG=v1.0.0 ./droplet/deploy.sh"
+
+# Cleanup temp files
+rm -f /tmp/docker-compose.yml /tmp/.env.production
