@@ -75,7 +75,7 @@ async def create_job(
             # Use low-level _pillow_heif API to bypass strict metadata validation
             logger.info("Decoding HEIC file with _pillow_heif low-level API...")
             import _pillow_heif
-            heif_ctx = _pillow_heif.load_file(file_content, load_cb_info=False)
+            heif_ctx = _pillow_heif.load_file(file_content)
             logger.info(f"HEIC context loaded - images count: {heif_ctx.images_count}")
             
             if heif_ctx.images_count > 0:

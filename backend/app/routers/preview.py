@@ -36,9 +36,9 @@ async def generate_preview(file: UploadFile = File(...)):
         if is_heif:
             logger.info("Opening HEIC file with pillow_heif.open_heif()...")
             try:
-                # Use open_heif with strict=False to bypass metadata validation
+                # Use low-level _pillow_heif API to bypass strict metadata validation
                 import _pillow_heif
-                heif_ctx = _pillow_heif.load_file(file_content, load_cb_info=False)
+                heif_ctx = _pillow_heif.load_file(file_content)
                 logger.info(f"HEIC context loaded - images count: {heif_ctx.images_count}")
                 
                 # Get first image
