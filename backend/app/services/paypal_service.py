@@ -20,8 +20,10 @@ class PayPalService:
         })
         
         self.plan_mapping = {
-            SubscriptionPlan.PERSONAL: settings.PAYPAL_PLAN_ID_PERSONAL,
-            SubscriptionPlan.PRO: settings.PAYPAL_PLAN_ID_PRO
+            SubscriptionPlan.BASIC_MONTHLY: settings.PAYPAL_PLAN_ID_BASIC_MONTHLY,
+            SubscriptionPlan.BASIC_YEARLY: settings.PAYPAL_PLAN_ID_BASIC_YEARLY,
+            SubscriptionPlan.PRO_MONTHLY: settings.PAYPAL_PLAN_ID_PRO_MONTHLY,
+            SubscriptionPlan.PRO_YEARLY: settings.PAYPAL_PLAN_ID_PRO_YEARLY
         }
     
     def get_plan_id(self, plan: SubscriptionPlan) -> Optional[str]:
