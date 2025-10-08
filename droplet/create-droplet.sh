@@ -6,7 +6,7 @@ set -e
 
 # Configuration
 DROPLET_NAME="${DROPLET_NAME:-product-snap-app}"
-REGION="${DO_REGION:-nyc3}"
+REGION="${DO_REGION:-fra1}"
 SIZE="${DO_SIZE:-s-1vcpu-1gb}"  # Minimal size
 IMAGE="${DO_IMAGE:-ubuntu-22-04-x64}"
 SSH_KEYS="${DO_SSH_KEYS:-}"  # Comma-separated list of SSH key IDs
@@ -57,12 +57,13 @@ DROPLET_IP=$(echo "$DROPLET_OUTPUT" | awk '{print $3}')
 echo ""
 echo "✓ Droplet created successfully!"
 echo "Droplet ID: $DROPLET_ID"
-echo "IP Address: $DROPLET_IP"
+echo "IP Address: $DROPLET_IP (temporary - use domain or reserved IP)"
 echo ""
 echo "Saving droplet info..."
 
 # Save droplet info to file
-cat > droplet/droplet-info.env << EOF
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cat > "$SCRIPT_DIR/droplet-info.env" << EOF
 DROPLET_ID=$DROPLET_ID
 DROPLET_NAME=$DROPLET_NAME
 DROPLET_IP=$DROPLET_IP
@@ -71,6 +72,16 @@ EOF
 
 echo "Droplet info saved to droplet/droplet-info.env"
 echo ""
+echo "⚠️  IMPORTANT: This IP is not fixed and may change if droplet is destroyed."
+echo ""
+echo "For production, you should:"
+echo "1. Reserve a Floating IP: doctl compute floating-ip create --region fra1"
+echo "2. Assign it to droplet: doctl compute floating-ip-action assign <floating-ip> $DROPLET_ID"
+echo "3. Point your domain to the floating IP"
+echo "4. Set APP_DOMAIN environment variable to your domain"
+echo ""
 echo "Next steps:"
 echo "1. Wait a few moments for the droplet to fully initialize"
-echo "2. Run ./droplet/prepare-droplet.sh to configure the droplet"
+echo "2. (Optional) Reserve and assign a floating IP"
+echo "3. Point your domain DNS to the IP"
+echo "4. Run: APP_DOMAIN=yourdomain.com ./droplet/prepare-droplet.sh"

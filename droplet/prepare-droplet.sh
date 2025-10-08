@@ -17,7 +17,14 @@ DOMAIN="${APP_DOMAIN:-}"
 EMAIL="${LETSENCRYPT_EMAIL:-}"
 DB_HOST="${DB_HOST:-}"
 
-echo "Preparing droplet: $DROPLET_NAME ($DROPLET_IP)"
+# Use domain if set, otherwise fall back to IP
+CONNECTION_HOST="${DOMAIN:-$DROPLET_IP}"
+
+echo "Preparing droplet: $DROPLET_NAME"
+echo "Connection: $CONNECTION_HOST"
+if [ -z "$DOMAIN" ]; then
+    echo "⚠️  Warning: Using IP address. Set APP_DOMAIN for production."
+fi
 echo ""
 
 if [ -z "$DOMAIN" ]; then
@@ -128,8 +135,8 @@ echo "=== Droplet preparation complete ==="
 SCRIPT_EOF
 
 echo "Uploading and executing preparation script..."
-scp -o StrictHostKeyChecking=no /tmp/prepare-script.sh root@$DROPLET_IP:/tmp/prepare-script.sh
-ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "chmod +x /tmp/prepare-script.sh && /tmp/prepare-script.sh"
+scp -o StrictHostKeyChecking=no /tmp/prepare-script.sh root@$CONNECTION_HOST:/tmp/prepare-script.sh
+ssh -o StrictHostKeyChecking=no root@$CONNECTION_HOST "chmod +x /tmp/prepare-script.sh && /tmp/prepare-script.sh"
 
 # Configure Let's Encrypt if domain is set
 if [ -n "$DOMAIN" ] && [ -n "$EMAIL" ]; then
@@ -137,7 +144,7 @@ if [ -n "$DOMAIN" ] && [ -n "$EMAIL" ]; then
     echo "=== Configuring Let's Encrypt SSL ==="
     echo "Domain: $DOMAIN"
     
-    ssh root@$DROPLET_IP << EOF
+    ssh root@$CONNECTION_HOST << EOF
 certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect
 EOF
     
