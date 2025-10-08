@@ -7,8 +7,10 @@ from app.core.database import Base
 
 class SubscriptionPlan(str, enum.Enum):
     FREE = "free"
-    PERSONAL = "personal"
-    PRO = "pro"
+    BASIC_MONTHLY = "basic_monthly"
+    BASIC_YEARLY = "basic_yearly"
+    PRO_MONTHLY = "pro_monthly"
+    PRO_YEARLY = "pro_yearly"
 
 
 class SubscriptionStatus(str, enum.Enum):
