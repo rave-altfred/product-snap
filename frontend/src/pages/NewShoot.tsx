@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, Camera, Image as ImageIcon, Wand2, X } from 'lucide-react'
 import { jobsApi } from '../lib/api'
+import heic2any from 'heic2any'
 
 type JobMode = 'STUDIO_WHITE' | 'MODEL_TRYON' | 'LIFESTYLE_SCENE'
 
@@ -60,9 +61,16 @@ export default function NewShoot() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file')
+    console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size)
+
+    // Validate file type - check MIME type or file extension for HEIC/HEIF
+    const fileExt = file.name.toLowerCase().split('.').pop() || ''
+    const isHeic = fileExt === 'heic' || fileExt === 'heif'
+    const hasValidMimeType = file.type.startsWith('image/') || file.type === 'image/heic' || file.type === 'image/heif'
+    
+    if (!hasValidMimeType && !isHeic) {
+      console.error('File type validation failed:', file.type, 'Extension:', fileExt)
+      setError('Please select a valid image file (JPG, PNG, WebP, HEIC/HEIF)')
       return
     }
 
@@ -75,12 +83,42 @@ export default function NewShoot() {
     setSelectedFile(file)
     setError('')
 
-    // Create preview URL
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      setPreviewUrl(e.target?.result as string)
+    // Create preview URL - convert HEIC to JPEG if needed
+    const createPreview = async () => {
+      try {
+        let previewBlob: Blob | File = file
+        
+        // Convert HEIC/HEIF to JPEG for browser preview
+        if (isHeic) {
+          console.log('Converting HEIC to JPEG for preview...')
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.8
+          })
+          previewBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob
+          console.log('HEIC conversion successful')
+        }
+        
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          console.log('Preview generated successfully')
+          setPreviewUrl(e.target?.result as string)
+        }
+        reader.onerror = (e) => {
+          console.error('Error reading file for preview:', e)
+          setPreviewUrl(null)
+        }
+        reader.readAsDataURL(previewBlob)
+      } catch (error) {
+        console.error('Error converting HEIC for preview:', error)
+        console.log('Will show placeholder instead. Original file will still be uploaded correctly.')
+        // Still allow upload even if conversion fails - just show placeholder
+        setPreviewUrl(null)
+      }
     }
-    reader.readAsDataURL(file)
+    
+    createPreview()
   }
 
   const handleDrop = (event: React.DragEvent) => {
@@ -273,11 +311,29 @@ export default function NewShoot() {
             </div>
           ) : (
             <div className="relative">
-              <img
-                src={previewUrl || ''}
-                alt="Preview"
-                className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
-              />
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                  onError={(e) => {
+                    console.log('Preview image failed to load, hiding...')
+                    e.currentTarget.style.display = 'none'
+                    const placeholder = e.currentTarget.nextElementSibling
+                    if (placeholder) {
+                      (placeholder as HTMLElement).style.display = 'flex'
+                    }
+                  }}
+                />
+              ) : null}
+              <div 
+                className="max-w-full h-96 mx-auto rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800 flex-col items-center justify-center"
+                style={{ display: previewUrl ? 'none' : 'flex' }}
+              >
+                <ImageIcon size={64} className="text-gray-400 dark:text-gray-600 mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">Preview not available</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">File ready to upload</p>
+              </div>
               <button
                 type="button"
                 onClick={clearFile}
@@ -286,7 +342,7 @@ export default function NewShoot() {
                 ×
               </button>
               <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB)
                 </p>
               </div>

@@ -33,8 +33,14 @@ async def create_job(
     redis_client: redis.Redis = Depends(get_redis_client)
 ):
     """Create a new image generation job."""
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"File upload attempt - filename: {file.filename}, content_type: {file.content_type}")
+    
     # Read file content for validation
     file_content = await file.read()
+    logger.info(f"File size: {len(file_content)} bytes")
     
     # Validate file size
     if len(file_content) > settings.MAX_UPLOAD_SIZE:
@@ -44,7 +50,9 @@ async def create_job(
         )
     
     # Validate file type (check both MIME type and actual content)
+    logger.info(f"Checking MIME type - Received: {file.content_type}, Allowed: {settings.ALLOWED_IMAGE_TYPES}")
     if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
+        logger.error(f"MIME type validation failed - Received: {file.content_type}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid file type. Supported types: {', '.join(settings.ALLOWED_IMAGE_TYPES)}"
@@ -62,6 +70,7 @@ async def create_job(
             image_stream.seek(0)
             with Image.open(image_stream) as img:
                 width, height = img.size
+                logger.info(f"Image opened - Format: {img.format}, Mode: {img.mode}, Size: {width}x{height}")
                 
                 if width < settings.MIN_IMAGE_WIDTH or height < settings.MIN_IMAGE_HEIGHT:
                     raise HTTPException(
