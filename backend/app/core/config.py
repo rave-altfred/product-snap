@@ -31,8 +31,13 @@ class Settings(BaseSettings):
     PAYPAL_CLIENT_ID: str
     PAYPAL_CLIENT_SECRET: str
     PAYPAL_MODE: str = "sandbox"  # or 'live'
-    PAYPAL_PLAN_ID_PERSONAL: Optional[str] = None
-    PAYPAL_PLAN_ID_PRO: Optional[str] = None
+    PAYPAL_WEBHOOK_ID: Optional[str] = None
+    
+    # PayPal Plan IDs - Basic and Pro with monthly/yearly options
+    PAYPAL_PLAN_ID_BASIC_MONTHLY: Optional[str] = None
+    PAYPAL_PLAN_ID_BASIC_YEARLY: Optional[str] = None
+    PAYPAL_PLAN_ID_PRO_MONTHLY: Optional[str] = None
+    PAYPAL_PLAN_ID_PRO_YEARLY: Optional[str] = None
     
     # Nano Banana
     NANO_BANANA_API_KEY: str
