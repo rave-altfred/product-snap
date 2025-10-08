@@ -1,0 +1,60 @@
+# Environment files (secrets)
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README*
+CHANGELOG*
+LICENSE
+
+# Tests
+tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment
+droplet/
+docker-compose*.yml
+Dockerfile*
+!Dockerfile

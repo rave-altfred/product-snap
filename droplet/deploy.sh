@@ -136,6 +136,9 @@ ssh root@$DROPLET_IP "mkdir -p $APP_DIR/nginx/conf.d $APP_DIR/nginx/ssl"
 scp -o StrictHostKeyChecking=no /tmp/docker-compose.yml root@$DROPLET_IP:$APP_DIR/docker-compose.yml
 scp -o StrictHostKeyChecking=no /tmp/.env.production root@$DROPLET_IP:$APP_DIR/.env.production
 
+# Set secure permissions on secrets file (readable only by root)
+ssh root@$DROPLET_IP "chmod 600 $APP_DIR/.env.production"
+
 # Upload system nginx config
 if [ -f "$SCRIPT_DIR/../nginx/productsnap-system.conf" ]; then
     echo "Uploading system nginx configuration..."
