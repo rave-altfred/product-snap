@@ -7,6 +7,10 @@ import uuid
 import time
 import logging
 
+# Register HEIF plugin for Pillow
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 from app.core.config import settings
 from app.core.logging import setup_logging, set_request_id
 from app.core.redis_client import get_redis_client, close_redis_client
