@@ -4,12 +4,17 @@ This directory contains scripts and configuration for deploying ProductSnap to a
 
 ## Architecture Overview
 
-**Services on Droplet:**
-- `backend` - FastAPI backend service
-- `frontend` - React frontend (Vite build served by Nginx)
-- `worker` - Background job processor
-- `redis` - Local Redis instance for caching/queues
-- `nginx` - Reverse proxy and SSL termination
+**Containerized Services on Droplet:**
+- `backend` - FastAPI backend service (port 8000, localhost only)
+- `frontend` - React frontend (Vite build served by Nginx, port 80, localhost only)
+- `worker` - Background job processor (no exposed ports)
+- `redis` - Local Redis instance for caching/queues (port 6379, localhost only)
+
+**System Services on Droplet:**
+- **System Nginx** - Reverse proxy and SSL termination (ports 80/443 public)
+  - Handles HTTPS with Let's Encrypt SSL certificates
+  - Proxies requests to containerized frontend and backend
+  - Configured via `/etc/nginx/sites-available/productsnap`
 
 **External Services (DigitalOcean Managed):**
 - PostgreSQL Database (Managed Database)
@@ -176,56 +181,75 @@ SERVICES='worker' ./droplet/deploy.sh
 ### View Logs
 
 ```bash
-# All services
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs -f'
+# All container logs
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose logs -f'
 
-# Specific service
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs -f backend'
+# Specific service logs
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose logs -f backend'
 
 # Last 100 lines
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs --tail=100'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose logs --tail=100'
+
+# System Nginx logs
+ssh root@<DROPLET_IP> 'tail -f /var/log/nginx/access.log'
+ssh root@<DROPLET_IP> 'tail -f /var/log/nginx/error.log'
+
+# SSL certificate logs
+ssh root@<DROPLET_IP> 'journalctl -u certbot.timer'
 ```
 
 ### Service Management
 
 ```bash
-# Check status
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose ps'
+# Check status of containerized services
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose ps'
 
-# Restart service
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose restart backend'
+# Check if containers are running
+ssh root@<DROPLET_IP> 'docker ps'
 
-# Restart all
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose restart'
+# Restart specific container
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose restart backend'
 
-# Stop all
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose down'
+# Restart all containers
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose restart'
 
-# Start all
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose up -d'
+# Stop all containers
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose down'
+
+# Start all containers
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose up -d'
+
+# Check system Nginx status
+ssh root@<DROPLET_IP> 'systemctl status nginx'
+
+# Restart system Nginx (after config changes)
+ssh root@<DROPLET_IP> 'systemctl restart nginx'
+
+# Test Nginx configuration
+ssh root@<DROPLET_IP> 'nginx -t'
 ```
 
 ### Database Migrations
 
 ```bash
 # Run migrations
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend alembic upgrade head'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose exec backend alembic upgrade head'
 
 # Create migration
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend alembic revision --autogenerate -m "description"'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose exec backend alembic revision --autogenerate -m "description"'
 ```
 
 ### Shell Access
 
 ```bash
 # Backend shell
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend bash'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose exec backend bash'
 
 # Redis CLI
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec redis redis-cli'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose exec redis redis-cli'
 
 # View environment
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend env'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose exec backend env'
 ```
 
 ## Troubleshooting
@@ -233,19 +257,36 @@ ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose exec backend env'
 ### Check Service Health
 
 ```bash
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose ps'
+# Check all running containers
+ssh root@<DROPLET_IP> 'docker ps'
+
+# Check specific service status
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose ps'
+
+# Test if backend is responding
+ssh root@<DROPLET_IP> 'curl http://localhost:8000/health'
+
+# Test if frontend is responding
+ssh root@<DROPLET_IP> 'curl http://localhost:80'
+
+# Test public HTTPS endpoint
+curl https://<YOUR_DOMAIN>/api/health
 ```
 
 ### View Recent Errors
 
 ```bash
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose logs --tail=50 backend | grep ERROR'
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose logs --tail=50 backend | grep ERROR'
 ```
 
 ### Restart Everything
 
 ```bash
-ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker-compose down && docker-compose up -d'
+# Restart all containers
+ssh root@<DROPLET_IP> 'cd /opt/product-snap && docker compose down && docker compose up -d'
+
+# Restart system Nginx
+ssh root@<DROPLET_IP> 'systemctl restart nginx'
 ```
 
 ### Clean Up Docker
@@ -294,7 +335,7 @@ droplet/
 1. **Never commit** `.env.production` or `droplet-info.env`
 2. **Rotate secrets** regularly (JWT_SECRET, API keys)
 3. **Use strong passwords** for database and services
-4. **Enable SSL** in production (configure nginx)
+4. **SSL is enabled** via Let's Encrypt (auto-renewed by certbot)
 5. **Restrict database access** to droplet IP only
 6. **Keep droplet updated**: `ssh root@<IP> 'apt update && apt upgrade -y'`
 7. **Monitor logs** for suspicious activity
