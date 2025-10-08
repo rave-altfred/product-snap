@@ -5,12 +5,13 @@ set -e
 # Configures HTTPS, SSH, Let's Encrypt certificates, and database access
 
 # Load droplet info
-if [ ! -f "droplet/droplet-info.env" ]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -f "$SCRIPT_DIR/droplet-info.env" ]; then
     echo "Error: droplet-info.env not found. Please run create-droplet.sh first."
     exit 1
 fi
 
-source droplet/droplet-info.env
+source "$SCRIPT_DIR/droplet-info.env"
 
 # Configuration
 DOMAIN="${DOMAIN:-utils.studio}"
@@ -39,7 +40,6 @@ if [ -n "$FLOATING_IP" ] && [[ ! "$FLOATING_IP" =~ "Error" ]]; then
     DROPLET_IP="$FLOATING_IP"
     
     # Update droplet-info.env with floating IP
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     cat > "$SCRIPT_DIR/droplet-info.env" << EOF
 DROPLET_ID=$DROPLET_ID
 DROPLET_NAME=$DROPLET_NAME
