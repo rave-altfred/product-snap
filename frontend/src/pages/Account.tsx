@@ -32,7 +32,7 @@ export default function Account() {
   const fetchProfile = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/users/me')
+      const response = await api.get('/api/users/me')
       setProfile(response.data)
       setFullName(response.data.full_name || '')
     } catch (err: any) {
@@ -49,7 +49,7 @@ export default function Account() {
       setError(null)
       setSuccess(null)
       
-      await api.put('/users/me', { full_name: fullName })
+      await api.put('/api/users/me', { full_name: fullName })
       setSuccess('Profile updated successfully')
       await fetchProfile()
     } catch (err: any) {
@@ -77,7 +77,7 @@ export default function Account() {
       setError(null)
       setSuccess(null)
       
-      await api.post('/users/change-password', {
+      await api.post('/api/users/change-password', {
         current_password: currentPassword,
         new_password: newPassword
       })

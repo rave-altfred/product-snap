@@ -35,8 +35,8 @@ export default function Billing() {
     try {
       setLoading(true)
       const [plansResponse, subResponse] = await Promise.all([
-        api.get('/subscriptions/plans'),
-        api.get('/subscriptions/me')
+        api.get('/api/subscriptions/plans'),
+        api.get('/api/subscriptions/me')
       ])
       setPlans(plansResponse.data.plans || [])
       setSubscription(subResponse.data)
@@ -50,7 +50,7 @@ export default function Billing() {
   const handleSubscribe = async (planId: string) => {
     try {
       setError(null)
-      const response = await api.post('/subscriptions/create', {
+      const response = await api.post('/api/subscriptions/create', {
         plan: planId,
         return_url: `${window.location.origin}/billing?success=true`,
         cancel_url: `${window.location.origin}/billing?cancel=true`
@@ -70,7 +70,7 @@ export default function Billing() {
     
     try {
       setError(null)
-      await api.post('/subscriptions/cancel')
+      await api.post('/api/subscriptions/cancel')
       await fetchData()
       alert('Subscription cancelled successfully')
     } catch (err: any) {
