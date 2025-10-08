@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, Camera, Image as ImageIcon, Wand2, X } from 'lucide-react'
-import { jobsApi } from '../lib/api'
-import axios from 'axios'
+import { jobsApi, api } from '../lib/api'
 
 type JobMode = 'STUDIO_WHITE' | 'MODEL_TRYON' | 'LIFESTYLE_SCENE'
 
@@ -92,8 +91,11 @@ export default function NewShoot() {
           const formData = new FormData()
           formData.append('file', file)
           
-          const response = await axios.post('/api/preview/generate', formData, {
-            responseType: 'blob'
+          const response = await api.post('/api/preview/generate', formData, {
+            responseType: 'blob',
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
           })
           
           // Create object URL from the JPEG blob
