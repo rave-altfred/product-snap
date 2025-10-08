@@ -12,6 +12,10 @@ from PIL import Image
 import io
 import uuid
 
+# Register HEIF plugin for Pillow
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.config import settings
