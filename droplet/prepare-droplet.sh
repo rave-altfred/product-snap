@@ -158,40 +158,55 @@ chown root:root /opt/product-snap
 chmod 755 /opt/product-snap
 
 echo "=== Basic Nginx configuration ==="
-# Create default configuration
+# Create temporary HTTP-only configuration for certbot
 cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-
     server_name _;
 
+    # For Let's Encrypt challenges
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
     }
 
-    # Health check endpoint
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
     location /health {
-        access_log off;
         return 200 "healthy\n";
         add_header Content-Type text/plain;
     }
 }
 NGINX_EOF
 
+# Create certbot webroot
+mkdir -p /var/www/certbot
+
 # Test nginx configuration
 nginx -t
 
-# Reload nginx
-systemctl reload nginx
+# Enable and start nginx
+systemctl enable nginx || true
+if systemctl is-active --quiet nginx; then
+    systemctl reload nginx
+    echo "✓ Nginx reloaded"
+else
+    systemctl start nginx
+    echo "✓ Nginx started"
+fi
 
 echo "=== Droplet preparation complete ==="
 SCRIPT_EOF
@@ -205,16 +220,41 @@ if [ -n "$FULL_DOMAIN" ] && [ -n "$EMAIL" ]; then
     echo ""
     echo "=== Configuring Let's Encrypt SSL ==="
     echo "Domain: $FULL_DOMAIN"
+    echo "Email: $EMAIL"
     
-    ssh root@$CONNECTION_HOST << EOF
-certbot --nginx -d $FULL_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect
-EOF
+    # Run certbot to get certificates
+    ssh root@$CONNECTION_HOST "certbot --nginx -d $FULL_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect"
     
-    echo "✓ SSL certificates configured successfully"
+    if [ $? -eq 0 ]; then
+        echo "✓ SSL certificates obtained"
+        
+        # Deploy production nginx configuration with SSL
+        if [ -f "$SCRIPT_DIR/../nginx/productsnap-system.conf" ]; then
+            echo "Deploying production nginx configuration..."
+            scp -o StrictHostKeyChecking=no "$SCRIPT_DIR/../nginx/productsnap-system.conf" root@$CONNECTION_HOST:/etc/nginx/sites-available/productsnap.conf
+            
+            ssh root@$CONNECTION_HOST << 'NGINX_PROD_EOF'
+# Enable production config
+ln -sf /etc/nginx/sites-available/productsnap.conf /etc/nginx/sites-enabled/productsnap.conf
+
+# Remove default
+rm -f /etc/nginx/sites-enabled/default
+
+# Test and reload
+nginx -t && systemctl reload nginx
+NGINX_PROD_EOF
+            
+            echo "✓ Production nginx configuration deployed"
+        fi
+        
+        echo "✓ SSL setup complete - site available at https://$FULL_DOMAIN"
+    else
+        echo "Warning: SSL certificate setup failed. Site running on HTTP only."
+    fi
 else
     echo ""
     echo "Warning: LETSENCRYPT_EMAIL not set. SSL certificates not configured."
-    echo "Set LETSENCRYPT_EMAIL and run certbot manually later."
+    echo "Set LETSENCRYPT_EMAIL in config.env and re-run this script."
 fi
 
 # Add droplet IP to database authorized sources if DB_ID is set
