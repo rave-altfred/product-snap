@@ -4,12 +4,18 @@ set -e
 # DigitalOcean Droplet Creation Script
 # Creates a minimal droplet (can be resized later)
 
+# Load config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/config.env" ]; then
+    source "$SCRIPT_DIR/config.env"
+fi
+
 # Configuration
 DROPLET_NAME="${DROPLET_NAME:-product-snap-app}"
-REGION="${DO_REGION:-fra1}"  # Default to Frankfurt
-SIZE="${DO_SIZE:-s-1vcpu-1gb}"  # Minimal size
+REGION="${DO_REGION:-fra1}"
+SIZE="${DO_SIZE:-s-1vcpu-1gb}"
 IMAGE="${DO_IMAGE:-ubuntu-22-04-x64}"
-SSH_KEYS="${DO_SSH_KEYS:-}"  # Comma-separated list of SSH key IDs
+SSH_KEYS="${DO_SSH_KEYS:-}"
 
 echo "Creating DigitalOcean droplet..."
 echo "Name: $DROPLET_NAME"

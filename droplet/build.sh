@@ -1,17 +1,22 @@
 #!/bin/bash
 set -e
 
-# Docker Build Script with Secrets Management
-# Builds Docker images using Docker secrets (no secrets in env files)
-# Includes multi-arch support, layer caching, and build optimization
+# Docker Build Script
+# Builds Docker images with local cache (no registry needed)
+# Registry namespace only needed if you want to push later
+
+# Load config if exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/config.env" ]; then
+    source "$SCRIPT_DIR/config.env"
+fi
 
 # Configuration
 REGISTRY="${DO_REGISTRY:-registry.digitalocean.com}"
 REGISTRY_NAMESPACE="${DO_REGISTRY_NAMESPACE:-}"
 TAG="${IMAGE_TAG:-latest}"
-PLATFORM="${BUILD_PLATFORM:-linux/amd64}"  # DigitalOcean droplets are typically amd64
+PLATFORM="${BUILD_PLATFORM:-linux/amd64}"
 USE_CACHE="${USE_CACHE:-true}"
-CACHE_FROM_REGISTRY="${CACHE_FROM_REGISTRY:-true}"  # Use registry for distributed cache
 
 # Services to build (default: all)
 SERVICES="${SERVICES:-backend frontend worker}"
@@ -27,13 +32,6 @@ echo ""
 # Check if Docker is running
 if ! docker info &> /dev/null; then
     echo "Error: Docker is not running. Please start Docker."
-    exit 1
-fi
-
-# Validate registry namespace
-if [ -z "$REGISTRY_NAMESPACE" ]; then
-    echo "Error: DO_REGISTRY_NAMESPACE is not set."
-    echo "Please set it to your DigitalOcean Container Registry namespace."
     exit 1
 fi
 
@@ -71,8 +69,17 @@ for SERVICE in $SERVICES; do
     echo "=========================================="
     
     IMAGE_NAME="product-snap-$SERVICE"
-    FULL_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:$TAG"
-    CACHE_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:buildcache"
+    
+    # Tag with registry if namespace provided, otherwise local only
+    if [ -n "$REGISTRY_NAMESPACE" ]; then
+        FULL_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:$TAG"
+        CACHE_IMAGE_NAME="$REGISTRY/$REGISTRY_NAMESPACE/$IMAGE_NAME:buildcache"
+        USE_REGISTRY_CACHE=true
+    else
+        FULL_IMAGE_NAME="$IMAGE_NAME:$TAG"
+        CACHE_IMAGE_NAME=""
+        USE_REGISTRY_CACHE=false
+    fi
     
     # Determine context and dockerfile
     case $SERVICE in
@@ -98,17 +105,17 @@ for SERVICE in $SERVICES; do
     
     # Prepare cache strategy
     CACHE_ARGS=""
-    if [ "$USE_CACHE" = "true" ]; then
-        if [ "$CACHE_FROM_REGISTRY" = "true" ]; then
-            echo "Pulling cache from registry..."
-            docker pull "$CACHE_IMAGE_NAME" 2>/dev/null || echo "No cache found (first build)"
-            docker pull "$FULL_IMAGE_NAME" 2>/dev/null || echo "No previous image found"
-            
-            CACHE_ARGS="$CACHE_ARGS --cache-from=$CACHE_IMAGE_NAME"
-            CACHE_ARGS="$CACHE_ARGS --cache-from=$FULL_IMAGE_NAME"
-        fi
-    else
+    if [ "$USE_CACHE" = "false" ]; then
         CACHE_ARGS="--no-cache"
+        echo "Cache disabled"
+    elif [ "$USE_REGISTRY_CACHE" = "true" ]; then
+        echo "Using registry cache..."
+        docker pull "$CACHE_IMAGE_NAME" 2>/dev/null || echo "No cache in registry"
+        docker pull "$FULL_IMAGE_NAME" 2>/dev/null || echo "No previous image in registry"
+        CACHE_ARGS="$CACHE_ARGS --cache-from=$CACHE_IMAGE_NAME --cache-from=$FULL_IMAGE_NAME"
+    else
+        echo "Using local cache (BuildKit)"
+        # BuildKit uses local cache automatically
     fi
     
     # Build arguments
@@ -128,8 +135,8 @@ for SERVICE in $SERVICES; do
         -f "$DOCKERFILE" \
         "$CONTEXT"
     
-    # Tag for cache
-    if [ "$USE_CACHE" = "true" ] && [ "$CACHE_FROM_REGISTRY" = "true" ]; then
+    # Tag for cache if using registry
+    if [ "$USE_REGISTRY_CACHE" = "true" ] && [ -n "$CACHE_IMAGE_NAME" ]; then
         docker tag "$FULL_IMAGE_NAME" "$CACHE_IMAGE_NAME"
     fi
     

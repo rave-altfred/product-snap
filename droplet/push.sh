@@ -3,14 +3,19 @@ set -e
 
 # Docker Push Script
 # Pushes built images to DigitalOcean Container Registry
-# Supports pushing cache images for faster subsequent builds
+
+# Load config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/config.env" ]; then
+    source "$SCRIPT_DIR/config.env"
+fi
 
 # Configuration
 REGISTRY="${DO_REGISTRY:-registry.digitalocean.com}"
 REGISTRY_NAMESPACE="${DO_REGISTRY_NAMESPACE:-}"
-IMAGE_NAME="${IMAGE_NAME:-product-snap}"
 TAG="${IMAGE_TAG:-latest}"
-PUSH_CACHE="${PUSH_CACHE:-true}"  # Also push cache image
+PUSH_CACHE="${PUSH_CACHE:-true}"
+SERVICES="${SERVICES:-backend frontend worker}"
 
 echo "Pushing Docker image to DigitalOcean Container Registry..."
 echo "Push cache: $PUSH_CACHE"

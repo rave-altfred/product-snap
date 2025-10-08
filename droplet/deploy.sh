@@ -4,18 +4,22 @@ set -e
 # Deployment Script
 # Deploys application to DigitalOcean droplet using Docker Compose
 
+# Load config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/config.env" ]; then
+    source "$SCRIPT_DIR/config.env"
+fi
+
 # Load droplet info
-if [ ! -f "droplet/droplet-info.env" ]; then
+if [ ! -f "$SCRIPT_DIR/droplet-info.env" ]; then
     echo "Error: droplet-info.env not found. Please run create-droplet.sh first."
     exit 1
 fi
-
-source droplet/droplet-info.env
+source "$SCRIPT_DIR/droplet-info.env"
 
 # Configuration
 REGISTRY="${DO_REGISTRY:-registry.digitalocean.com}"
 REGISTRY_NAMESPACE="${DO_REGISTRY_NAMESPACE:-}"
-IMAGE_NAME="${IMAGE_NAME:-product-snap}"
 TAG="${IMAGE_TAG:-latest}"
 APP_PORT="${APP_PORT:-3000}"
 

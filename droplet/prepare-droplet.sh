@@ -4,16 +4,20 @@ set -e
 # DigitalOcean Droplet Preparation Script
 # Configures HTTPS, SSH, Let's Encrypt certificates, and database access
 
-# Load droplet info
+# Load config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/config.env" ]; then
+    source "$SCRIPT_DIR/config.env"
+fi
+
+# Load droplet info
 if [ ! -f "$SCRIPT_DIR/droplet-info.env" ]; then
     echo "Error: droplet-info.env not found. Please run create-droplet.sh first."
     exit 1
 fi
-
 source "$SCRIPT_DIR/droplet-info.env"
 
-# Configuration
+# Configuration (can be overridden by environment variables)
 DOMAIN="${DOMAIN:-utils.studio}"
 SUBDOMAIN="${SUBDOMAIN:-lightclick}"
 FULL_DOMAIN="$SUBDOMAIN.$DOMAIN"
