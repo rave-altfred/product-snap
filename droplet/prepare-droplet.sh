@@ -3,6 +3,7 @@ set -e
 
 # DigitalOcean Droplet Preparation Script
 # Configures HTTPS, SSH, Let's Encrypt certificates, and database access
+# This script is idempotent and can be run multiple times safely
 
 # Load config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,38 +28,29 @@ DB_ID="${DB_ID:-}"
 echo "Preparing droplet: $DROPLET_NAME (ID: $DROPLET_ID)"
 echo ""
 
-# Reserve and assign floating IP
-FLOATING_IP=""
+# Check if floating IP already exists
 echo "=== Floating IP Setup ==="
-echo "Reserving floating IP in $REGION..."
-FLOATING_IP=$(doctl compute floating-ip create --region "$REGION" --format IP --no-header 2>&1)
-
-if [ -n "$FLOATING_IP" ] && [[ ! "$FLOATING_IP" =~ "Error" ]]; then
-    echo "✓ Floating IP reserved: $FLOATING_IP"
-    
-    echo "Assigning floating IP to droplet..."
-    doctl compute floating-ip-action assign "$FLOATING_IP" "$DROPLET_ID"
-    sleep 3  # Wait for assignment to complete
-    echo "✓ Floating IP assigned to droplet"
-    
-    # Update droplet IP to floating IP
+if [ -n "$FLOATING_IP" ] && [ "$FLOATING_IP" != "$DROPLET_IP" ]; then
+    echo "✓ Floating IP already configured: $FLOATING_IP"
     DROPLET_IP="$FLOATING_IP"
-    
-    # Update droplet-info.env with floating IP
-    cat > "$SCRIPT_DIR/droplet-info.env" << EOF
-DROPLET_ID=$DROPLET_ID
-DROPLET_NAME=$DROPLET_NAME
-DROPLET_IP=$DROPLET_IP
-FLOATING_IP=$FLOATING_IP
-REGION=$REGION
-DOMAIN=$DOMAIN
-SUBDOMAIN=$SUBDOMAIN
-FULL_DOMAIN=$FULL_DOMAIN
-CREATED_AT=$(grep CREATED_AT "$SCRIPT_DIR/droplet-info.env" | cut -d= -f2)
-EOF
-    echo "✓ Droplet info updated with floating IP"
 else
-    echo "Warning: Failed to reserve floating IP. Using droplet IP: $DROPLET_IP"
+    echo "Checking for existing floating IP assignment..."
+    # Check if droplet already has a floating IP
+    EXISTING_FLOATING=$(doctl compute droplet get "$DROPLET_ID" --format "Public IPv4" --no-header 2>/dev/null || echo "")
+    
+    if [ -n "$EXISTING_FLOATING" ]; then
+        echo "✓ Droplet already has IP: $EXISTING_FLOATING"
+        FLOATING_IP="$EXISTING_FLOATING"
+        DROPLET_IP="$EXISTING_FLOATING"
+        
+        # Update droplet-info.env
+        sed -i.bak "s/^FLOATING_IP=.*/FLOATING_IP=$FLOATING_IP/" "$SCRIPT_DIR/droplet-info.env"
+        sed -i.bak "s/^DROPLET_IP=.*/DROPLET_IP=$DROPLET_IP/" "$SCRIPT_DIR/droplet-info.env"
+        rm -f "$SCRIPT_DIR/droplet-info.env.bak"
+    else
+        echo "No floating IP found. Using direct droplet IP: $DROPLET_IP"
+        echo "Note: To add a floating IP later, reserve one manually and update droplet-info.env"
+    fi
 fi
 
 echo ""
@@ -123,8 +115,14 @@ apt-get install -y \
     docker-compose
 
 # Enable and start Docker
-systemctl enable docker
-systemctl start docker
+echo "Configuring Docker..."
+systemctl enable docker || true
+if ! systemctl is-active --quiet docker; then
+    systemctl start docker
+    echo "✓ Docker started"
+else
+    echo "✓ Docker already running"
+fi
 
 echo "=== Configuring Firewall (UFW) ==="
 ufw --force enable
