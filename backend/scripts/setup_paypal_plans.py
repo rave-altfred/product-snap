@@ -25,8 +25,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
-import paypalrestsdk
-from paypalrestsdk import Product, Plan
+import requests
+import json
 
 # Load environment variables
 load_dotenv()
@@ -40,42 +40,75 @@ if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
     print("   Set them in your .env file or as environment variables")
     sys.exit(1)
 
-# Configure PayPal SDK
-paypalrestsdk.configure({
-    "mode": PAYPAL_MODE,
-    "client_id": PAYPAL_CLIENT_ID,
-    "client_secret": PAYPAL_CLIENT_SECRET
-})
+# PayPal API base URL
+BASE_URL = "https://api-m.sandbox.paypal.com" if PAYPAL_MODE == "sandbox" else "https://api-m.paypal.com"
 
 print(f"🔧 Configuring PayPal in {PAYPAL_MODE.upper()} mode")
 print(f"   Client ID: {PAYPAL_CLIENT_ID[:20]}...")
+print(f"   Base URL: {BASE_URL}")
 print()
 
 
-def create_product(name, description, category="SOFTWARE"):
+def get_access_token():
+    """Get PayPal OAuth access token."""
+    auth_url = f"{BASE_URL}/v1/oauth2/token"
+    headers = {
+        "Accept": "application/json",
+        "Accept-Language": "en_US"
+    }
+    data = {"grant_type": "client_credentials"}
+    
+    response = requests.post(
+        auth_url,
+        headers=headers,
+        data=data,
+        auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
+    )
+    
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        print(f"❌ Failed to get access token: {response.text}")
+        sys.exit(1)
+
+
+def create_product(access_token, name, description, category="SOFTWARE"):
     """Create a PayPal product."""
-    product = Product({
+    url = f"{BASE_URL}/v1/catalogs/products"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    product_data = {
         "name": name,
         "description": description,
         "type": "SERVICE",
-        "category": category,
-        "image_url": "https://productsnap.com/logo.png",
-        "home_url": "https://productsnap.com"
-    })
+        "category": category
+    }
     
-    if product.create():
+    response = requests.post(url, headers=headers, json=product_data)
+    
+    if response.status_code == 201:
+        product = response.json()
         print(f"✅ Created product: {name}")
-        print(f"   Product ID: {product.id}")
-        return product.id
+        print(f"   Product ID: {product['id']}")
+        return product["id"]
     else:
         print(f"❌ Failed to create product: {name}")
-        print(f"   Error: {product.error}")
+        print(f"   Error: {response.status_code} - {response.text}")
         return None
 
 
-def create_billing_plan(product_id, plan_name, description, price, interval, interval_count=1):
+def create_billing_plan(access_token, product_id, plan_name, description, price, interval, interval_count=1):
     """Create a PayPal billing plan."""
-    plan = Plan({
+    url = f"{BASE_URL}/v1/billing/plans"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    plan_data = {
         "product_id": product_id,
         "name": plan_name,
         "description": description,
@@ -87,7 +120,7 @@ def create_billing_plan(product_id, plan_name, description, price, interval, int
                 },
                 "tenure_type": "REGULAR",
                 "sequence": 1,
-                "total_cycles": 0,  # 0 = infinite
+                "total_cycles": 0,
                 "pricing_scheme": {
                     "fixed_price": {
                         "value": str(price),
@@ -109,15 +142,18 @@ def create_billing_plan(product_id, plan_name, description, price, interval, int
             "percentage": "0",
             "inclusive": False
         }
-    })
+    }
     
-    if plan.create():
+    response = requests.post(url, headers=headers, json=plan_data)
+    
+    if response.status_code == 201:
+        plan = response.json()
         print(f"✅ Created plan: {plan_name}")
-        print(f"   Plan ID: {plan.id}")
-        return plan.id
+        print(f"   Plan ID: {plan['id']}")
+        return plan["id"]
     else:
         print(f"❌ Failed to create plan: {plan_name}")
-        print(f"   Error: {plan.error}")
+        print(f"   Error: {response.status_code} - {response.text}")
         return None
 
 
@@ -128,12 +164,19 @@ def main():
     print("=" * 70)
     print()
     
+    # Get access token
+    print("🔑 Getting PayPal access token...")
+    access_token = get_access_token()
+    print("✅ Access token obtained")
+    print()
+    
     # Store all plan IDs
     plan_ids = {}
     
     # Create Basic Product
     print("📦 Creating Basic Tier Product...")
     basic_product_id = create_product(
+        access_token,
         "ProductSnap Basic",
         "ProductSnap Basic subscription with enhanced features and no watermarks"
     )
@@ -147,6 +190,7 @@ def main():
     # Create Pro Product
     print("📦 Creating Pro Tier Product...")
     pro_product_id = create_product(
+        access_token,
         "ProductSnap Pro",
         "ProductSnap Pro subscription with unlimited features, custom prompts, and priority support"
     )
@@ -164,6 +208,7 @@ def main():
     # Create Basic Monthly Plan
     print("💳 Creating Basic Monthly Plan ($9.99/month)...")
     basic_monthly_id = create_billing_plan(
+        access_token,
         basic_product_id,
         "Basic Monthly",
         "ProductSnap Basic - Billed Monthly at $9.99/month",
@@ -178,6 +223,7 @@ def main():
     # Create Basic Yearly Plan
     print("💳 Creating Basic Yearly Plan ($99.99/year)...")
     basic_yearly_id = create_billing_plan(
+        access_token,
         basic_product_id,
         "Basic Yearly",
         "ProductSnap Basic - Billed Annually at $99.99/year (save 17%)",
@@ -192,6 +238,7 @@ def main():
     # Create Pro Monthly Plan
     print("💳 Creating Pro Monthly Plan ($29.99/month)...")
     pro_monthly_id = create_billing_plan(
+        access_token,
         pro_product_id,
         "Pro Monthly",
         "ProductSnap Pro - Billed Monthly at $29.99/month",
@@ -206,6 +253,7 @@ def main():
     # Create Pro Yearly Plan
     print("💳 Creating Pro Yearly Plan ($299.99/year)...")
     pro_yearly_id = create_billing_plan(
+        access_token,
         pro_product_id,
         "Pro Yearly",
         "ProductSnap Pro - Billed Annually at $299.99/year (save 17%)",
