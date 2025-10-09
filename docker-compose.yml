@@ -36,6 +36,45 @@ services:
     networks:
       - productsnap-network
 
+  # MinIO S3-compatible storage for local development
+  minio:
+    image: minio/minio:latest
+    container_name: productsnap-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - productsnap-network
+
+  # MinIO Client - creates bucket on startup
+  minio-init:
+    image: minio/mc:latest
+    container_name: productsnap-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set minio http://minio:9000 minioadmin minioadmin;
+      mc mb minio/productsnap --ignore-existing;
+      mc anonymous set download minio/productsnap;
+      echo 'MinIO bucket created successfully';
+      "
+    networks:
+      - productsnap-network
+
   # FastAPI Backend
   backend:
     build:
@@ -99,6 +138,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -161,6 +202,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
       backend:
         condition: service_healthy
     networks:
@@ -211,6 +254,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  minio_data:
     driver: local
   nginx_cache:
     driver: local

@@ -178,7 +178,7 @@ export default function Library() {
                   </p>
                 )}
                 
-                {job.result_urls.length > 0 && (
+                {job.result_urls && job.result_urls.length > 0 && (
                   <div className="mt-3">
                     <p className="text-xs text-gray-500 mb-1">{job.result_urls.length} results</p>
                     <div className="flex flex-wrap gap-1">

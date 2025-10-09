@@ -12,11 +12,30 @@ import Account from './pages/Account'
 import Layout from './components/Layout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  const { isAuthenticated, logout } = useAuthStore()
+  
+  console.log('[ProtectedRoute] isAuthenticated:', isAuthenticated)
+  
+  // Check if we actually have valid tokens
+  const hasTokens = localStorage.getItem('access_token') && localStorage.getItem('refresh_token')
+  console.log('[ProtectedRoute] hasTokens:', !!hasTokens)
+  
+  // If state says authenticated but no tokens, clear the state
+  if (isAuthenticated && !hasTokens) {
+    console.log('[ProtectedRoute] Clearing stale auth state')
+    logout()
+    return <Navigate to="/login" replace />
+  }
+  
+  const shouldRender = isAuthenticated && hasTokens
+  console.log('[ProtectedRoute] shouldRender:', shouldRender)
+  
+  return shouldRender ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 function App() {
+  console.log('[App] Rendering App component')
+  
   return (
     <Routes>
       <Route path="/" element={<Landing />} />

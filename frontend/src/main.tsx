@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
 
+console.log('[main.tsx] Starting app initialization')
+
 // Dark mode detection
 if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
   document.documentElement.classList.add('dark')
@@ -30,6 +32,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+console.log('[main.tsx] QueryClient created, mounting React app')
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

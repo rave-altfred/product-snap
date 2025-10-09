@@ -39,6 +39,8 @@ const modes: ModeOption[] = [
 ]
 
 export default function NewShoot() {
+  console.log('[NewShoot] Component mounting')
+  
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedMode, setSelectedMode] = useState<JobMode>('STUDIO_WHITE')
@@ -54,6 +56,8 @@ export default function NewShoot() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const navigate = useNavigate()
   const { logout } = useAuthStore()
+  
+  console.log('[NewShoot] State initialized:', { selectedFile, selectedMode, shadowOption })
 
   // Cleanup camera stream on unmount
   useEffect(() => {
@@ -168,7 +172,7 @@ export default function NewShoot() {
     try {
       const formData = new FormData()
       formData.append('file', selectedFile)
-      formData.append('mode', selectedMode)
+      formData.append('mode', selectedMode.toLowerCase())
       
       // Add sub-options based on mode
       if (selectedMode === 'STUDIO_WHITE') {

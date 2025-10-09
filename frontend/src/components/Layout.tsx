@@ -9,6 +9,8 @@ export default function Layout() {
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   
+  console.log('[Layout] Rendering with user:', user)
+  
   const isActive = (path: string) => location.pathname === path
   
   const closeMobileMenu = () => setIsMobileMenuOpen(false)
