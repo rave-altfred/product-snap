@@ -56,7 +56,7 @@ setup('basic user login', async ({ page, context }) => {
  * This assumes you have premium test credentials configured
  */
 setup('premium user login', async ({ page, context }) => {
-  const email = process.env.TEST_PREMIUM_EMAIL || 'premium@example.com';
+  const email = process.env.TEST_PREMIUM_EMAIL || 'premium2@example.com';
   const password = process.env.TEST_PREMIUM_PASSWORD || 'premiumpass123';
   
   await page.goto('/login');

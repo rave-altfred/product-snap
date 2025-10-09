@@ -145,13 +145,13 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  // Note: Comment out webServer if using Docker
-  // The app should already be running via docker-compose
-  webServer: process.env.USE_DOCKER ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  // Note: Webserver disabled - use docker-compose for local testing
+  // Uncomment and modify if you want to run tests against local dev server
+  // webServer: {
+  //   command: 'npm run dev',
+  //   url: 'http://localhost:5173',
+  //   reuseExistingServer: !process.env.CI,
+  //   stdout: 'ignore',
+  //   stderr: 'pipe',
+  // },
 });
