@@ -9,10 +9,10 @@ test.describe('Authentication', () => {
     });
 
     test('should display login form', async ({ page }) => {
-      await expect(page.getByRole('heading', { name: /sign in|login/i })).toBeVisible();
-      await expect(page.getByLabel(/email/i)).toBeVisible();
-      await expect(page.getByLabel(/password/i)).toBeVisible();
-      await expect(page.getByRole('button', { name: /sign in|login/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /login/i })).toBeVisible();
+      await expect(page.locator('input[type="email"]')).toBeVisible();
+      await expect(page.locator('input[type="password"]')).toBeVisible();
+      await expect(page.getByRole('button', { name: /login/i })).toBeVisible();
     });
 
     test('should show validation errors for empty fields', async ({ page }) => {

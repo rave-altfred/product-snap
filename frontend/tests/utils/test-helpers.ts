@@ -130,10 +130,21 @@ export async function logout(page: Page) {
 }
 
 /**
- * Fill form field by label
+ * Fill form field by label or placeholder
+ * Falls back to input type if label not found
  */
 export async function fillFormField(page: Page, label: string | RegExp, value: string) {
-  await page.getByLabel(label).fill(value);
+  try {
+    await page.getByLabel(label).fill(value, { timeout: 1000 });
+  } catch {
+    // Fallback to placeholder or input type
+    if (typeof label === 'string') {
+      const input = page.getByPlaceholder(label).or(page.locator(`input[placeholder*="${label}"]`));
+      await input.fill(value);
+    } else {
+      throw new Error('Could not find form field');
+    }
+  }
 }
 
 /**

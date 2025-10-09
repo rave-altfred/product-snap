@@ -1,5 +1,10 @@
 import { test as base } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module fix for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Storage state paths
 const authDir = path.join(__dirname, '../../playwright/.auth');

@@ -1,5 +1,10 @@
 import { test as setup, expect } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module fix for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Storage state paths
 const authDir = path.join(__dirname, '../../playwright/.auth');
@@ -29,11 +34,12 @@ setup('basic user login', async ({ page, context }) => {
   const password = process.env.TEST_USER_PASSWORD || 'testpassword123';
   
   await page.goto('/login');
+  await page.waitForLoadState('networkidle');
   
-  // Fill in login form
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole('button', { name: /sign in|login/i }).click();
+  // Fill in login form (using input types since labels don't have htmlFor)
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole('button', { name: /login/i }).click();
   
   // Wait for successful navigation to dashboard
   await page.waitForURL('/dashboard', { timeout: 10000 });
@@ -54,11 +60,12 @@ setup('premium user login', async ({ page, context }) => {
   const password = process.env.TEST_PREMIUM_PASSWORD || 'premiumpass123';
   
   await page.goto('/login');
+  await page.waitForLoadState('networkidle');
   
-  // Fill in login form
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole('button', { name: /sign in|login/i }).click();
+  // Fill in login form (using input types since labels don't have htmlFor)
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole('button', { name: /login/i }).click();
   
   // Wait for successful navigation
   await page.waitForURL('/dashboard', { timeout: 10000 });
