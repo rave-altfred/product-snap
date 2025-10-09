@@ -37,7 +37,6 @@ export default function NewShoot() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedMode, setSelectedMode] = useState<JobMode>('STUDIO_WHITE')
-  const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showCamera, setShowCamera] = useState(false)
@@ -161,9 +160,6 @@ export default function NewShoot() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('mode', selectedMode)
-      if (prompt.trim()) {
-        formData.append('prompt', prompt.trim())
-      }
 
       await jobsApi.create(formData)
       
@@ -367,16 +363,22 @@ export default function NewShoot() {
         </div>
 
         {/* Mode Selection */}
-        <div className="card">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4">Choose Render Mode</h2>
+        <div className={`card ${!selectedFile ? 'opacity-60' : ''}`}>
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">
+            Choose Render Mode
+            {!selectedFile && <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">(Upload an image first)</span>}
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {modes.map((mode) => (
               <button
                 key={mode.id}
                 type="button"
-                onClick={() => setSelectedMode(mode.id)}
+                onClick={() => selectedFile && setSelectedMode(mode.id)}
+                disabled={!selectedFile}
                 className={`p-4 border rounded-lg text-left transition-colors ${
-                  selectedMode === mode.id
+                  !selectedFile
+                    ? 'cursor-not-allowed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600'
+                    : selectedMode === mode.id
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
                     : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
                 }`}
@@ -389,19 +391,6 @@ export default function NewShoot() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Prompt Input */}
-        <div className="card">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4">Custom Prompt (Optional)</h2>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe any specific requirements or styling preferences..."
-            className="w-full h-24 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            maxLength={500}
-          />
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{prompt.length}/500 characters</p>
         </div>
 
         {/* Error Message */}
