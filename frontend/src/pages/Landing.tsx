@@ -209,7 +209,7 @@ export default function Landing() {
       <footer className="border-t border-gray-200 dark:border-gray-800 py-12 mt-20">
         <div className="container mx-auto px-6 text-center text-gray-600 dark:text-gray-400">
           <p className="mb-2">© 2025 ProductSnap. All rights reserved.</p>
-          <p className="text-sm">Transform your products with AI-powered photography</p>
+          <p className="text-sm">Transform your products with AI-powered photography ✨</p>
         </div>
       </footer>
     </div>
