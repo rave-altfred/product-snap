@@ -3,7 +3,10 @@ import asyncio
 from typing import Optional, Dict
 import logging
 import uuid
+import random
 from datetime import datetime
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 
 from app.core.config import settings
 from app.models import JobMode
@@ -164,6 +167,14 @@ class NanoBananaClient:
         poll_interval: int = 5
     ) -> Dict:
         """Poll a job until it completes or times out."""
+        # Mock mode - simulate realistic generation time (5-15 seconds)
+        if self.mode == "mock":
+            generation_time = random.uniform(5, 15)
+            logger.info(f"[MOCK] Simulating generation for {generation_time:.1f} seconds")
+            await asyncio.sleep(generation_time)
+            return await self.get_job_status(job_id)
+        
+        # Live mode - actual polling
         elapsed = 0
         while elapsed < max_wait_seconds:
             status = await self.get_job_status(job_id)
@@ -179,17 +190,82 @@ class NanoBananaClient:
         
         raise TimeoutError(f"Job {job_id} did not complete within {max_wait_seconds} seconds")
     
-    async def download_result(self, result_url: str) -> bytes:
+    def _generate_mock_image(self, prompt: str, mode: str, job_id: str) -> bytes:
+        """Generate a mock result image with prompt text and info."""
+        # Create image (1024x1024)
+        width, height = 1024, 1024
+        img = Image.new('RGB', (width, height), color='white')
+        draw = ImageDraw.Draw(img)
+        
+        # Try to use a nice font, fallback to default
+        try:
+            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
+            small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+        except:
+            title_font = ImageFont.load_default()
+            text_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+        
+        # Draw title
+        title = "[MOCK GENERATION]"
+        draw.text((50, 50), title, fill='red', font=title_font)
+        
+        # Draw mode
+        mode_text = f"Mode: {mode.upper()}"
+        draw.text((50, 120), mode_text, fill='black', font=text_font)
+        
+        # Draw job ID
+        job_text = f"Job ID: {job_id}"
+        draw.text((50, 160), job_text, fill='gray', font=small_font)
+        
+        # Draw timestamp
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        draw.text((50, 190), f"Generated: {timestamp}", fill='gray', font=small_font)
+        
+        # Draw prompt (wrapped)
+        prompt_title = "Prompt:"
+        draw.text((50, 240), prompt_title, fill='black', font=text_font)
+        
+        # Wrap prompt text
+        y_offset = 280
+        max_width = width - 100
+        words = prompt.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=small_font)
+            if bbox[2] - bbox[0] <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Draw wrapped lines
+        for line in lines[:30]:  # Max 30 lines
+            draw.text((50, y_offset), line, fill='#333333', font=small_font)
+            y_offset += 25
+        
+        # Draw footer
+        footer = "This is a mock result for development. Enable live mode to generate real images."
+        draw.text((50, height - 50), footer, fill='gray', font=small_font)
+        
+        # Convert to bytes
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        return buffer.getvalue()
+    
+    async def download_result(self, result_url: str, prompt: str = "", mode: str = "", job_id: str = "") -> bytes:
         """Download generated image."""
-        # Mock mode - return a simple 1x1 PNG
+        # Mock mode - generate image with prompt info
         if self.mode == "mock":
-            logger.info(f"[MOCK] Downloading result from {result_url}")
-            # Minimal valid PNG (1x1 transparent pixel)
-            return bytes.fromhex(
-                '89504e470d0a1a0a0000000d494844520000000100000001'
-                '08060000001f15c4890000000a49444154789c6300010000'
-                '00050001d5a371fe0000000049454e44ae426082'
-            )
+            logger.info(f"[MOCK] Generating mock result image")
+            return self._generate_mock_image(prompt, mode, job_id)
         
         # Live mode - actual download
         try:

@@ -111,11 +111,25 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
                 max_wait_seconds=300
             )
             
+            # Get the generated prompt for mock mode
+            generated_prompt = nano_banana_client.get_prompt(
+                job.mode,
+                job.prompt_override,
+                shadow_option,
+                model_gender,
+                scene_environment
+            )
+            
             # Download and store results
             result_urls = []
             for result_url in result.get("output_urls", [result.get("output_url")]):
                 if result_url:
-                    result_bytes = await nano_banana_client.download_result(result_url)
+                    result_bytes = await nano_banana_client.download_result(
+                        result_url,
+                        prompt=generated_prompt,
+                        mode=job.mode.value,
+                        job_id=job.id
+                    )
                     
                     # Upload to storage
                     s3_url = storage_service.upload_bytes(

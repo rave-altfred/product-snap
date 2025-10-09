@@ -4,11 +4,14 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
+import logging
 
 from app.core.database import get_db
 from app.models import User, Subscription, SubscriptionPlan, SubscriptionStatus
 from app.routers.auth import get_current_user
 from app.services.paypal_service import paypal_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -202,6 +205,7 @@ async def create_subscription(
         
     except Exception as e:
         db.rollback()
+        logger.error(f"Subscription creation error: {str(e)}", exc_info=True)
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=f"Failed to create subscription: {str(e)}")

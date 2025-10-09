@@ -25,8 +25,8 @@ class Subscription(Base):
     
     id = Column(String, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    plan = Column(Enum(SubscriptionPlan), default=SubscriptionPlan.FREE, nullable=False)
-    status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.ACTIVE, nullable=False)
+    plan = Column(Enum(SubscriptionPlan, values_callable=lambda obj: [e.value for e in obj]), default=SubscriptionPlan.FREE, nullable=False)
+    status = Column(Enum(SubscriptionStatus, values_callable=lambda obj: [e.value for e in obj]), default=SubscriptionStatus.ACTIVE, nullable=False)
     paypal_subscription_id = Column(String, nullable=True, index=True)
     paypal_plan_id = Column(String, nullable=True)
     current_period_start = Column(DateTime, nullable=True)
