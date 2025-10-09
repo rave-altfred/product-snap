@@ -5,6 +5,10 @@ import { jobsApi, api } from '../lib/api'
 
 type JobMode = 'STUDIO_WHITE' | 'MODEL_TRYON' | 'LIFESTYLE_SCENE'
 
+type ShadowOption = 'drop_shadow' | 'no_shadow'
+type ModelGender = 'male' | 'female'
+type SceneEnvironment = 'indoor' | 'outdoor'
+
 interface ModeOption {
   id: JobMode
   name: string
@@ -37,6 +41,9 @@ export default function NewShoot() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedMode, setSelectedMode] = useState<JobMode>('STUDIO_WHITE')
+  const [shadowOption, setShadowOption] = useState<ShadowOption>('drop_shadow')
+  const [modelGender, setModelGender] = useState<ModelGender>('female')
+  const [sceneEnvironment, setSceneEnvironment] = useState<SceneEnvironment>('indoor')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showCamera, setShowCamera] = useState(false)
@@ -160,6 +167,15 @@ export default function NewShoot() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('mode', selectedMode)
+      
+      // Add sub-options based on mode
+      if (selectedMode === 'STUDIO_WHITE') {
+        formData.append('shadow_option', shadowOption)
+      } else if (selectedMode === 'MODEL_TRYON') {
+        formData.append('model_gender', modelGender)
+      } else if (selectedMode === 'LIFESTYLE_SCENE') {
+        formData.append('scene_environment', sceneEnvironment)
+      }
 
       await jobsApi.create(formData)
       
@@ -391,6 +407,103 @@ export default function NewShoot() {
               </button>
             ))}
           </div>
+
+          {/* Sub-options */}
+          {selectedFile && selectedMode === 'STUDIO_WHITE' && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-medium mb-3">Shadow Style</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShadowOption('drop_shadow')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    shadowOption === 'drop_shadow'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">Drop Shadow</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Subtle depth</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShadowOption('no_shadow')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    shadowOption === 'no_shadow'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">No Shadow</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pure white</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedFile && selectedMode === 'MODEL_TRYON' && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-medium mb-3">Model Gender</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setModelGender('male')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    modelGender === 'male'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">Male Model</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Masculine</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModelGender('female')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    modelGender === 'female'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">Female Model</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Feminine</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedFile && selectedMode === 'LIFESTYLE_SCENE' && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-medium mb-3">Environment</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSceneEnvironment('indoor')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    sceneEnvironment === 'indoor'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">Indoor</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Kitchen, desk, bedroom</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSceneEnvironment('outdoor')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    sceneEnvironment === 'outdoor'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">Outdoor</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Garden, cafe, street</div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Error Message */}
