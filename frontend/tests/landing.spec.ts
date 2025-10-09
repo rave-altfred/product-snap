@@ -8,8 +8,8 @@ test.describe('Landing Page', () => {
   });
 
   test('should display landing page with key elements', async ({ page }) => {
-    // Check for main heading
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // Check for main heading (there may be multiple h1 tags)
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     
     // Check for call-to-action buttons
     const ctaButtons = page.getByRole('link', { name: /get started|sign up|try free/i });
