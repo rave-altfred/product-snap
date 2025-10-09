@@ -76,11 +76,30 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
             # Get signed URL for input image
             input_url = storage_service.get_signed_url(job.input_url, expiration=3600)
             
+            # Parse prompt metadata (sub-options)
+            import json
+            shadow_option = None
+            model_gender = None
+            scene_environment = None
+            
+            if job.prompt:
+                try:
+                    prompt_metadata = json.loads(job.prompt)
+                    shadow_option = prompt_metadata.get('shadow_option')
+                    model_gender = prompt_metadata.get('model_gender')
+                    scene_environment = prompt_metadata.get('scene_environment')
+                    logger.info(f"Job {job_id} sub-options: shadow={shadow_option}, gender={model_gender}, environment={scene_environment}")
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse prompt metadata for job {job_id}")
+            
             # Create Nano Banana job
             nb_response = await nano_banana_client.create_job(
                 input_image_url=input_url,
                 mode=job.mode,
-                custom_prompt=job.prompt_override
+                custom_prompt=job.prompt_override,
+                shadow_option=shadow_option,
+                model_gender=model_gender,
+                scene_environment=scene_environment
             )
             
             job.nano_banana_job_id = nb_response.get("job_id")

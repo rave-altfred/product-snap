@@ -44,21 +44,65 @@ class NanoBananaClient:
         )
         logger.info(f"NanoBananaClient initialized in {self.mode} mode")
     
-    def get_prompt(self, mode: JobMode, custom_prompt: Optional[str] = None) -> str:
-        """Get the prompt for a job mode."""
+    def get_prompt(
+        self, 
+        mode: JobMode, 
+        custom_prompt: Optional[str] = None,
+        shadow_option: Optional[str] = None,
+        model_gender: Optional[str] = None,
+        scene_environment: Optional[str] = None
+    ) -> str:
+        """Get the prompt for a job mode with sub-options."""
         base_prompt = self.PROMPT_TEMPLATES.get(mode, "")
+        
+        # Add sub-option specific instructions
+        modifications = []
+        
+        if mode == JobMode.STUDIO_WHITE and shadow_option:
+            if shadow_option == 'no_shadow':
+                modifications.append("No shadow. Completely flat, pure white isolation.")
+            elif shadow_option == 'drop_shadow':
+                modifications.append("Subtle drop shadow for depth.")
+        
+        if mode == JobMode.MODEL_TRYON and model_gender:
+            if model_gender == 'male':
+                modifications.append("Show on a male model with masculine features and styling.")
+            elif model_gender == 'female':
+                modifications.append("Show on a female model with feminine features and styling.")
+        
+        if mode == JobMode.LIFESTYLE_SCENE and scene_environment:
+            if scene_environment == 'indoor':
+                modifications.append("Indoor setting: kitchen counter, desk, living room, or bedroom environment.")
+            elif scene_environment == 'outdoor':
+                modifications.append("Outdoor setting: garden, park, cafe terrace, or street scene.")
+        
+        # Build final prompt
+        final_prompt = base_prompt
+        if modifications:
+            final_prompt = f"{base_prompt} {' '.join(modifications)}"
+        
         if custom_prompt:
-            return f"{base_prompt}\n\nAdditional instructions: {custom_prompt}"
-        return base_prompt
+            final_prompt = f"{final_prompt}\n\nAdditional instructions: {custom_prompt}"
+        
+        return final_prompt
     
     async def create_job(
         self,
         input_image_url: str,
         mode: JobMode,
-        custom_prompt: Optional[str] = None
+        custom_prompt: Optional[str] = None,
+        shadow_option: Optional[str] = None,
+        model_gender: Optional[str] = None,
+        scene_environment: Optional[str] = None
     ) -> Dict:
         """Create a new image generation job."""
-        prompt = self.get_prompt(mode, custom_prompt)
+        prompt = self.get_prompt(
+            mode, 
+            custom_prompt, 
+            shadow_option, 
+            model_gender, 
+            scene_environment
+        )
         
         # Mock mode - simulate job creation
         if self.mode == "mock":

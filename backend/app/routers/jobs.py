@@ -33,6 +33,9 @@ async def create_job(
     file: UploadFile = File(...),
     mode: str = Form(...),
     prompt_override: Optional[str] = Form(None),
+    shadow_option: Optional[str] = Form(None),
+    model_gender: Optional[str] = Form(None),
+    scene_environment: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client)
@@ -171,6 +174,19 @@ async def create_job(
         folder="uploads"
     )
     
+    # Build prompt metadata from sub-options
+    prompt_metadata = {}
+    if shadow_option:
+        prompt_metadata['shadow_option'] = shadow_option
+    if model_gender:
+        prompt_metadata['model_gender'] = model_gender
+    if scene_environment:
+        prompt_metadata['scene_environment'] = scene_environment
+    
+    # Store as JSON string in prompt field if we have metadata
+    import json
+    prompt_json = json.dumps(prompt_metadata) if prompt_metadata else None
+    
     # Create job
     job = Job(
         id=str(uuid.uuid4()),
@@ -179,6 +195,7 @@ async def create_job(
         status=JobStatus.QUEUED,
         input_url=input_url,
         input_filename=file.filename,
+        prompt=prompt_json,
         prompt_override=prompt_override
     )
     db.add(job)
