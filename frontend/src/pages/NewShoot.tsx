@@ -447,18 +447,6 @@ export default function NewShoot() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setModelGender('male')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    modelGender === 'male'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">Male Model</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Masculine</div>
-                </button>
-                <button
-                  type="button"
                   onClick={() => setModelGender('female')}
                   className={`p-3 border rounded-lg text-center text-sm transition-colors ${
                     modelGender === 'female'
@@ -468,6 +456,18 @@ export default function NewShoot() {
                 >
                   <div className="font-medium">Female Model</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Feminine</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModelGender('male')}
+                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                    modelGender === 'male'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">Male Model</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Masculine</div>
                 </button>
               </div>
             </div>
