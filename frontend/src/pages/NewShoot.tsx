@@ -321,7 +321,7 @@ export default function NewShoot() {
                   <img
                     src={previewUrl}
                     alt="Preview"
-                    className="max-w-full max-h-96 mx-auto rounded-lg shadow-lg"
+                    className="max-w-full max-h-96 mx-auto rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 object-contain bg-gray-50 dark:bg-gray-900"
                     onError={(e) => {
                       console.log('Preview image failed to load, hiding...')
                       e.currentTarget.style.display = 'none'
