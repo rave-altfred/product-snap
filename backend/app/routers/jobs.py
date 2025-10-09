@@ -14,7 +14,7 @@ register_heif_opener()
 from app.core.database import get_db
 from app.core.redis_client import get_redis_client
 from app.core.config import settings
-from app.models import Job, JobMode, JobStatus, User, Subscription
+from app.models import Job, JobMode, JobStatus, User, Subscription, SubscriptionPlan, SubscriptionStatus
 from app.services.storage_service import storage_service
 from app.services.rate_limit_service import RateLimitService
 from app.routers.auth import get_current_user
@@ -157,9 +157,15 @@ async def create_job(
             detail="No active subscription"
         )
     
+    # Check if subscription is active (pending subscriptions should use free limits)
+    effective_plan = subscription.plan
+    if subscription.status != SubscriptionStatus.ACTIVE:
+        # If subscription is pending/cancelled/expired, treat as free
+        effective_plan = SubscriptionPlan.FREE
+    
     # Check rate limits
     rate_limiter = RateLimitService(redis_client)
-    can_create, error_msg = await rate_limiter.check_job_limit(current_user.id, subscription.plan)
+    can_create, error_msg = await rate_limiter.check_job_limit(current_user.id, effective_plan)
     if not can_create:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -202,8 +208,8 @@ async def create_job(
     db.commit()
     db.refresh(job)
     
-    # Increment usage
-    await rate_limiter.increment_usage(current_user.id, subscription.plan)
+    # Increment usage (use effective plan to track correctly)
+    await rate_limiter.increment_usage(current_user.id, effective_plan)
     
     # Add to queue
     await redis_client.rpush("job_queue", job.id)

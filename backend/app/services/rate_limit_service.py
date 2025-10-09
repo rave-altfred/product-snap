@@ -18,19 +18,24 @@ class RateLimitService:
                 "concurrent_jobs": settings.FREE_CONCURRENT_JOBS,
                 "period": "day"
             }
-        elif plan == SubscriptionPlan.PERSONAL:
+        elif plan in [SubscriptionPlan.BASIC_MONTHLY, SubscriptionPlan.BASIC_YEARLY]:
             return {
-                "jobs_per_month": settings.PERSONAL_JOBS_PER_MONTH,
-                "concurrent_jobs": settings.PERSONAL_CONCURRENT_JOBS,
+                "jobs_per_month": settings.PERSONAL_JOBS_PER_MONTH,  # 100 jobs
+                "concurrent_jobs": settings.PERSONAL_CONCURRENT_JOBS,  # 3 concurrent
                 "period": "month"
             }
-        elif plan == SubscriptionPlan.PRO:
+        elif plan in [SubscriptionPlan.PRO_MONTHLY, SubscriptionPlan.PRO_YEARLY]:
             return {
-                "jobs_per_month": settings.PRO_JOBS_PER_MONTH,
-                "concurrent_jobs": settings.PRO_CONCURRENT_JOBS,
+                "jobs_per_month": settings.PRO_JOBS_PER_MONTH,  # 1000 jobs
+                "concurrent_jobs": settings.PRO_CONCURRENT_JOBS,  # 5 concurrent
                 "period": "month"
             }
-        return {}
+        # Fallback to free plan limits if unknown plan
+        return {
+            "jobs_per_day": settings.FREE_JOBS_PER_DAY,
+            "concurrent_jobs": settings.FREE_CONCURRENT_JOBS,
+            "period": "day"
+        }
     
     async def check_job_limit(self, user_id: str, plan: SubscriptionPlan) -> tuple[bool, str]:
         """Check if user can create a new job."""
