@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, Camera, Image as ImageIcon, Wand2, X } from 'lucide-react'
 import { jobsApi, api } from '../lib/api'
+import { useAuthStore } from '../store/authStore'
 
 type JobMode = 'STUDIO_WHITE' | 'MODEL_TRYON' | 'LIFESTYLE_SCENE'
 
@@ -52,6 +53,7 @@ export default function NewShoot() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const navigate = useNavigate()
+  const { logout } = useAuthStore()
 
   // Cleanup camera stream on unmount
   useEffect(() => {
@@ -182,6 +184,14 @@ export default function NewShoot() {
       // Navigate to library to see the new job
       navigate('/library')
     } catch (err: any) {
+      // Handle authentication errors
+      if (err.response?.status === 401) {
+        logout()
+        navigate('/login')
+        return
+      }
+      
+      // Show other errors
       setError(err.response?.data?.detail || 'Failed to create job')
     } finally {
       setLoading(false)
