@@ -14,9 +14,15 @@ TEST_USER_PASSWORD=testpassword123
 # Premium test user  
 TEST_PREMIUM_EMAIL=premium@example.com
 TEST_PREMIUM_PASSWORD=premiumpass123
+
+# Base URL (use http://localhost for Docker)
+BASE_URL=http://localhost
+
+# Set to 1 when using Docker
+USE_DOCKER=1
 ```
 
-> **Note**: You'll need to create these test users in your database first.
+> **Note**: Test users are already created and ready to use!
 
 ### 2. Run Your First Test
 
@@ -90,9 +96,16 @@ npx playwright install
 ```
 
 ### Tests failing with "connect ECONNREFUSED"
-Make sure your dev server is running:
+Make sure your Docker containers are running:
 ```bash
-npm run dev
+cd /Users/ravenir/dev/apps/product-snap
+docker-compose ps
+# All containers should be "Up" and "healthy"
+```
+
+If containers aren't running:
+```bash
+docker-compose up -d
 ```
 
 ### Want to see what's happening?
