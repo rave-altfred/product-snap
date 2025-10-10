@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     
     # S3/Spaces
     S3_ENDPOINT: str
+    S3_PUBLIC_ENDPOINT: Optional[str] = None  # Public-facing endpoint for signed URLs (e.g., http://localhost:9000)
     S3_REGION: str = "us-east-1"
     S3_BUCKET: str
     S3_ACCESS_KEY: str

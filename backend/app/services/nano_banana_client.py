@@ -198,11 +198,30 @@ class NanoBananaClient:
         draw = ImageDraw.Draw(img)
         
         # Try to use a nice font, fallback to default
-        try:
-            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
-            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-            small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-        except:
+        # Try multiple common font paths for cross-platform compatibility
+        title_font = None
+        text_font = None
+        small_font = None
+        
+        font_paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",  # macOS
+            "/Library/Fonts/Arial.ttf",  # macOS
+            "C:\\Windows\\Fonts\\Arial.ttf",  # Windows
+        ]
+        
+        for font_path in font_paths:
+            try:
+                title_font = ImageFont.truetype(font_path, 32)
+                text_font = ImageFont.truetype(font_path, 20)
+                small_font = ImageFont.truetype(font_path, 16)
+                break
+            except Exception:
+                continue
+        
+        # If no system fonts found, use PIL's default
+        if not title_font:
+            logger.warning("No TrueType fonts found, using default font")
             title_font = ImageFont.load_default()
             text_font = ImageFont.load_default()
             small_font = ImageFont.load_default()
@@ -236,8 +255,14 @@ class NanoBananaClient:
         
         for word in words:
             test_line = ' '.join(current_line + [word])
-            bbox = draw.textbbox((0, 0), test_line, font=small_font)
-            if bbox[2] - bbox[0] <= max_width:
+            # Use textbbox if available (Pillow >= 8.0.0), otherwise use textsize
+            try:
+                bbox = draw.textbbox((0, 0), test_line, font=small_font)
+                text_width = bbox[2] - bbox[0]
+            except AttributeError:
+                text_width = draw.textsize(test_line, font=small_font)[0]
+            
+            if text_width <= max_width:
                 current_line.append(word)
             else:
                 if current_line:

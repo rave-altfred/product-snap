@@ -22,6 +22,20 @@ class StorageService:
             config=Config(signature_version='s3v4')
         )
         self.bucket = settings.S3_BUCKET
+        # Use public endpoint for signed URLs if available, otherwise use internal endpoint
+        self.public_endpoint = settings.S3_PUBLIC_ENDPOINT or settings.S3_ENDPOINT
+        # Create separate client for generating public signed URLs
+        if settings.S3_PUBLIC_ENDPOINT:
+            self.public_s3_client = boto3.client(
+                's3',
+                endpoint_url=settings.S3_PUBLIC_ENDPOINT,
+                aws_access_key_id=settings.S3_ACCESS_KEY,
+                aws_secret_access_key=settings.S3_SECRET_KEY,
+                region_name=settings.S3_REGION,
+                config=Config(signature_version='s3v4')
+            )
+        else:
+            self.public_s3_client = self.s3_client
     
     def upload_file(
         self,
@@ -87,7 +101,8 @@ class StorageService:
         bucket, key = parts
         
         try:
-            url = self.s3_client.generate_presigned_url(
+            # Use public client for signed URLs so they're accessible from browser
+            url = self.public_s3_client.generate_presigned_url(
                 'get_object',
                 Params={'Bucket': bucket, 'Key': key},
                 ExpiresIn=expiration

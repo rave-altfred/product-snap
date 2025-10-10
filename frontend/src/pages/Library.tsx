@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, CheckCircle, XCircle, Play, Trash2 } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, Play, Trash2, Grid, List } from 'lucide-react'
 import { jobsApi } from '../lib/api'
+import ImageModal from '../components/ImageModal'
 
 interface Job {
   id: string
@@ -19,6 +20,9 @@ export default function Library() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedImages, setSelectedImages] = useState<string[]>([])
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0)
+  const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery')
 
   useEffect(() => {
     loadJobs()
@@ -74,6 +78,16 @@ export default function Library() {
     return mode.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
+  const openImageModal = (images: string[], index: number) => {
+    setSelectedImages(images)
+    setSelectedImageIndex(index)
+  }
+
+  const closeImageModal = () => {
+    setSelectedImages([])
+    setSelectedImageIndex(0)
+  }
+
   if (loading) {
     return (
       <div className="p-8">
@@ -98,11 +112,29 @@ export default function Library() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold">Library</h1>
-        <Link to="/new-shoot" className="btn btn-primary w-full sm:w-auto text-center">
-          New Shoot
-        </Link>
+      <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Library</h1>
+        <div className="flex gap-2">
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('gallery')}
+              className={`p-2 ${viewMode === 'gallery' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              title="Gallery view"
+            >
+              <Grid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 ${viewMode === 'list' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              title="List view"
+            >
+              <List size={18} />
+            </button>
+          </div>
+          <Link to="/new-shoot" className="btn btn-primary text-sm px-3 py-2 whitespace-nowrap">
+            New Shoot
+          </Link>
+        </div>
       </div>
       
       {jobs.length === 0 ? (
@@ -116,8 +148,8 @@ export default function Library() {
             Create New Shoot
           </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      ) : viewMode === 'gallery' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
           {jobs.map((job) => (
             <div key={job.id} className="card hover:shadow-lg transition-shadow">
               <div className="relative">
@@ -125,7 +157,20 @@ export default function Library() {
                   <img
                     src={job.thumbnail_url}
                     alt={job.input_filename || 'Job result'}
-                    className="w-full h-48 object-cover rounded-t-lg"
+                    className="w-full h-48 object-cover rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    style={{ imageRendering: 'auto' }}
+                    onClick={() => {
+                      console.log('Job data:', { 
+                        id: job.id, 
+                        has_result_urls: !!job.result_urls, 
+                        result_urls_length: job.result_urls?.length || 0,
+                        result_urls: job.result_urls,
+                        thumbnail_url: job.thumbnail_url
+                      })
+                      const urlsToOpen = job.result_urls && job.result_urls.length > 0 ? job.result_urls : [job.thumbnail_url!]
+                      console.log('Opening modal with URLs:', urlsToOpen)
+                      openImageModal(urlsToOpen, 0)
+                    }}
                   />
                 ) : (
                   <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
@@ -180,29 +225,94 @@ export default function Library() {
                 
                 {job.result_urls && job.result_urls.length > 0 && (
                   <div className="mt-3">
-                    <p className="text-xs text-gray-500 mb-1">{job.result_urls.length} results</p>
-                    <div className="flex flex-wrap gap-1">
-                      {job.result_urls.slice(0, 3).map((url, index) => (
-                        <img
-                          key={index}
-                          src={url}
-                          alt={`Result ${index + 1}`}
-                          className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded border cursor-pointer hover:opacity-75"
-                          onClick={() => window.open(url, '_blank')}
-                        />
-                      ))}
-                      {job.result_urls.length > 3 && (
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-500">
-                          +{job.result_urls.length - 3}
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => openImageModal(job.result_urls, 0)}
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      View {job.result_urls.length} {job.result_urls.length === 1 ? 'result' : 'results'} →
+                    </button>
                   </div>
                 )}
               </div>
             </div>
           ))}
         </div>
+      ) : (
+        <div className="space-y-3 w-full">
+          {jobs.map((job) => (
+            <div key={job.id} className="card p-3 sm:p-4 hover:shadow-lg transition-shadow w-full">
+              <div className="flex gap-2 sm:gap-3 w-full">
+                {/* Thumbnail */}
+                <div className="flex-shrink-0">
+                  {job.thumbnail_url ? (
+                    <img
+                      src={job.thumbnail_url}
+                      alt={job.input_filename || 'Job result'}
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => {
+                        const urlsToOpen = job.result_urls && job.result_urls.length > 0 ? job.result_urls : [job.thumbnail_url!]
+                        openImageModal(urlsToOpen, 0)
+                      }}
+                    />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded flex items-center justify-center">
+                      {getStatusIcon(job.status)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0 overflow-hidden" style={{ maxWidth: 'calc(100vw - 120px)' }}>
+                  <div className="flex items-start gap-2 mb-1">
+                    <h3 className="font-medium text-sm truncate flex-1 min-w-0 max-w-full">{job.input_filename || 'Untitled'}</h3>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="hidden sm:block">{getStatusIcon(job.status)}</div>
+                      <button
+                        onClick={() => deleteJob(job.id)}
+                        className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Delete job"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-600 mb-1 truncate">
+                    {formatMode(job.mode)} • <span className="capitalize">{job.status}</span>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mb-1 truncate">
+                    {formatDate(job.created_at)}
+                  </p>
+                  
+                  {job.error_message && (
+                    <p className="text-xs text-red-600 mb-1 truncate" title={job.error_message}>
+                      Error: {job.error_message}
+                    </p>
+                  )}
+                  
+                  {job.result_urls && job.result_urls.length > 0 && (
+                    <button
+                      onClick={() => openImageModal(job.result_urls, 0)}
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      View {job.result_urls.length} {job.result_urls.length === 1 ? 'result' : 'results'} →
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {selectedImages.length > 0 && (
+        <ImageModal
+          images={selectedImages}
+          currentIndex={selectedImageIndex}
+          onClose={closeImageModal}
+          onNavigate={setSelectedImageIndex}
+        />
       )}
     </div>
   )

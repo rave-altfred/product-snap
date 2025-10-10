@@ -114,6 +114,7 @@ async def create_job(
         # Check image format matches MIME type
         format_mime_mapping = {
             'JPEG': 'image/jpeg',
+            'MPO': 'image/jpeg',  # MPO is Multi-Picture Object (JPEG-based)
             'PNG': 'image/png',
             'WEBP': 'image/webp',
             'HEIF': ['image/heic', 'image/heif']
@@ -238,7 +239,10 @@ async def list_jobs(
             "status": job.status.value,
             "created_at": job.created_at.isoformat(),
             "progress": job.progress,
-            "thumbnail_url": storage_service.get_signed_url(job.thumbnail_url) if job.thumbnail_url else None
+            "thumbnail_url": storage_service.get_signed_url(job.thumbnail_url) if job.thumbnail_url else None,
+            "result_urls": [storage_service.get_signed_url(url) for url in (job.result_urls or [])],
+            "input_filename": job.input_filename,
+            "error_message": job.error_message
         }
         job_list.append(job_dict)
     
