@@ -42,8 +42,8 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost'
-      const { data } = await axios.get(`${apiUrl}/api/auth/google/login`)
+      // Use relative URL so it works in both local and production
+      const { data } = await axios.get('/api/auth/google/login')
       
       // Open Google OAuth in popup window
       const width = 500
