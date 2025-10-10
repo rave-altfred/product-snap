@@ -398,126 +398,129 @@ export default function NewShoot() {
             Choose Render Mode
             {!selectedFile && <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">(Upload an image first)</span>}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-3 sm:gap-4">
             {modes.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => selectedFile && setSelectedMode(mode.id)}
-                disabled={!selectedFile}
-                className={`p-4 border rounded-lg text-left transition-colors ${
-                  !selectedFile
-                    ? 'cursor-not-allowed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600'
-                    : selectedMode === mode.id
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  {mode.icon}
-                  <h3 className="font-medium">{mode.name}</h3>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{mode.description}</p>
-              </button>
+              <div key={mode.id} className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => selectedFile && setSelectedMode(mode.id)}
+                  disabled={!selectedFile}
+                  className={`w-full p-4 border rounded-lg text-left transition-colors min-h-[6.5rem] flex flex-col justify-center ${
+                    !selectedFile
+                      ? 'cursor-not-allowed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600'
+                      : selectedMode === mode.id
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    {mode.icon}
+                    <h3 className="font-medium">{mode.name}</h3>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{mode.description}</p>
+                </button>
+
+                {/* Sub-options for Studio White */}
+                {selectedFile && selectedMode === 'STUDIO_WHITE' && mode.id === 'STUDIO_WHITE' && (
+                  <div className="px-2">
+                    <h3 className="text-sm font-medium mb-2">Shadow Style</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShadowOption('drop_shadow')}
+                        className={`p-2 border rounded-lg text-center text-xs transition-colors ${
+                          shadowOption === 'drop_shadow'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="font-medium">Drop Shadow</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Subtle depth</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShadowOption('no_shadow')}
+                        className={`p-2 border rounded-lg text-center text-xs transition-colors ${
+                          shadowOption === 'no_shadow'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="font-medium">No Shadow</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pure white</div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-options for Model Try-On */}
+                {selectedFile && selectedMode === 'MODEL_TRYON' && mode.id === 'MODEL_TRYON' && (
+                  <div className="px-2">
+                    <h3 className="text-sm font-medium mb-2">Model Gender</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModelGender('female')}
+                        className={`p-2 border rounded-lg text-center text-xs transition-colors ${
+                          modelGender === 'female'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="font-medium">Female Model</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Feminine</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModelGender('male')}
+                        className={`p-2 border rounded-lg text-center text-xs transition-colors ${
+                          modelGender === 'male'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="font-medium">Male Model</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Masculine</div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-options for Lifestyle Scene */}
+                {selectedFile && selectedMode === 'LIFESTYLE_SCENE' && mode.id === 'LIFESTYLE_SCENE' && (
+                  <div className="px-2">
+                    <h3 className="text-sm font-medium mb-2">Environment</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSceneEnvironment('indoor')}
+                        className={`p-2 border rounded-lg text-center text-xs transition-colors ${
+                          sceneEnvironment === 'indoor'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="font-medium">Indoor</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Kitchen, desk, bedroom</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSceneEnvironment('outdoor')}
+                        className={`p-2 border rounded-lg text-center text-xs transition-colors ${
+                          sceneEnvironment === 'outdoor'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="font-medium">Outdoor</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Garden, cafe, street</div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
-
-          {/* Sub-options */}
-          {selectedFile && selectedMode === 'STUDIO_WHITE' && (
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-medium mb-3">Shadow Style</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShadowOption('drop_shadow')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    shadowOption === 'drop_shadow'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">Drop Shadow</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Subtle depth</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShadowOption('no_shadow')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    shadowOption === 'no_shadow'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">No Shadow</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pure white</div>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedFile && selectedMode === 'MODEL_TRYON' && (
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-medium mb-3">Model Gender</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModelGender('female')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    modelGender === 'female'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">Female Model</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Feminine</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModelGender('male')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    modelGender === 'male'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">Male Model</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Masculine</div>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedFile && selectedMode === 'LIFESTYLE_SCENE' && (
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-medium mb-3">Environment</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSceneEnvironment('indoor')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    sceneEnvironment === 'indoor'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">Indoor</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Kitchen, desk, bedroom</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSceneEnvironment('outdoor')}
-                  className={`p-3 border rounded-lg text-center text-sm transition-colors ${
-                    sceneEnvironment === 'outdoor'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <div className="font-medium">Outdoor</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Garden, cafe, street</div>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Error Message */}
