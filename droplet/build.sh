@@ -79,7 +79,8 @@ for SERVICE in $SERVICES; do
             DOCKERFILE="./backend/Dockerfile"
             ;;
         frontend)
-            CONTEXT="./frontend"
+            # Use root context for git access, but specify frontend Dockerfile
+            CONTEXT="."
             DOCKERFILE="./frontend/Dockerfile"
             ;;
         *)

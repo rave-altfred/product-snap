@@ -9,19 +9,31 @@ CMD ["npm", "run", "dev"]
 FROM node:18-alpine as build
 WORKDIR /app
 
+# Install git for version generation
+RUN apk add --no-cache git
+
+# Copy git metadata for version info (from root context)
+COPY .git/ ./.git/
+
 # Install dependencies first (this layer will be cached unless package.json changes)
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
 
+# Copy version generation dependencies
+COPY frontend/vite-plugin-version.js ./
+
 # Copy configuration files that affect the build
-COPY tsconfig*.json ./
-COPY vite.config.ts ./
-COPY postcss.config.js ./
-COPY tailwind.config.js ./
-COPY index.html ./
+COPY frontend/tsconfig*.json ./
+COPY frontend/vite.config.ts ./
+COPY frontend/postcss.config.js ./
+COPY frontend/tailwind.config.js ./
+COPY frontend/index.html ./
 
 # Copy source code (this will invalidate cache when source changes)
-COPY src/ ./src/
+COPY frontend/src/ ./src/
+
+# Mark directory as safe for git operations
+RUN git config --global --add safe.directory /app
 
 # Run the build with optimizations for Docker/emulation
 # Skip type checking in Docker (we assume it passes locally)
