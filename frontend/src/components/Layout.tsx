@@ -2,6 +2,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { LogOut, Camera, FolderOpen, CreditCard, User, Home, Menu, X } from 'lucide-react'
+import { version } from '../version'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
@@ -90,6 +91,11 @@ export default function Layout() {
                 <LogOut size={18} />
               </button>
             </div>
+            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center font-mono" title="Application Version">
+                v{version}
+              </p>
+            </div>
           </div>
         </aside>
 
@@ -141,6 +147,11 @@ export default function Layout() {
                   >
                     <LogOut size={18} />
                   </button>
+                </div>
+                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center font-mono" title="Application Version">
+                    v{version}
+                  </p>
                 </div>
               </div>
             </div>
