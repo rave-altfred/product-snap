@@ -12,13 +12,20 @@ import Account from './pages/Account'
 import Layout from './components/Layout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, logout } = useAuthStore()
+  const { isAuthenticated, logout, _hasHydrated } = useAuthStore()
   
-  console.log('[ProtectedRoute] isAuthenticated:', isAuthenticated)
+  console.log('[ProtectedRoute] isAuthenticated:', isAuthenticated, ', hasHydrated:', _hasHydrated)
   
   // Check if we actually have valid tokens
   const hasTokens = localStorage.getItem('access_token') && localStorage.getItem('refresh_token')
   console.log('[ProtectedRoute] hasTokens:', !!hasTokens)
+  
+  // If store hasn't hydrated yet, show loading or wait
+  if (!_hasHydrated) {
+    console.log('[ProtectedRoute] Waiting for store to hydrate...')
+    // Check tokens directly while waiting for hydration
+    return hasTokens ? <>{children}</> : <Navigate to="/login" replace />
+  }
   
   // If state says authenticated but no tokens, clear the state
   if (isAuthenticated && !hasTokens) {
