@@ -43,8 +43,68 @@ export default function Login() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost'
       const { data } = await axios.get(`${apiUrl}/api/auth/google/login`)
-      // Redirect to Google OAuth
-      window.location.href = data.authorization_url
+      
+      // Open Google OAuth in popup window
+      const width = 500
+      const height = 600
+      const left = window.screen.width / 2 - width / 2
+      const top = window.screen.height / 2 - height / 2
+      
+      const popup = window.open(
+        data.authorization_url,
+        'Google Sign In',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+      )
+
+      if (!popup) {
+        setError('Popup blocked. Please allow popups for this site.')
+        setLoading(false)
+        return
+      }
+
+      // Listen for messages from the popup
+      const handleMessage = async (event: MessageEvent) => {
+        // Verify origin for security
+        const expectedOrigin = window.location.origin
+        if (event.origin !== expectedOrigin) {
+          return
+        }
+
+        if (event.data.type === 'OAUTH_SUCCESS') {
+          window.removeEventListener('message', handleMessage)
+          
+          const { access_token, refresh_token } = event.data
+          
+          try {
+            // Store tokens first so userApi.getMe() can use them
+            localStorage.setItem('access_token', access_token)
+            localStorage.setItem('refresh_token', refresh_token)
+            
+            const { data: userData } = await userApi.getMe()
+            
+            login(access_token, refresh_token, userData)
+            navigate('/dashboard')
+          } catch (err: any) {
+            setError('Failed to complete sign in')
+            setLoading(false)
+          }
+        } else if (event.data.type === 'OAUTH_ERROR') {
+          window.removeEventListener('message', handleMessage)
+          setError(event.data.error || 'Google sign in failed')
+          setLoading(false)
+        }
+      }
+
+      window.addEventListener('message', handleMessage)
+
+      // Check if popup was closed without completing auth
+      const checkPopupClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkPopupClosed)
+          window.removeEventListener('message', handleMessage)
+          setLoading(false)
+        }
+      }, 500)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to initiate Google login')
       setLoading(false)
