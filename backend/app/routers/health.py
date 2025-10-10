@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.redis_client import get_redis_client
+from app.core.config import settings
 import redis.asyncio as redis
+import subprocess
+from datetime import datetime
 
 router = APIRouter()
 
@@ -36,3 +39,36 @@ async def health_check(
             "redis": redis_status
         }
     }
+
+
+@router.get("/version")
+async def get_version():
+    """Return application version information."""
+    version_info = {
+        "version": settings.APP_VERSION,
+        "app_name": settings.APP_NAME,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    
+    # Try to get git information
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+        version_info["git_commit"] = git_commit
+    except Exception:
+        pass
+    
+    try:
+        git_branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+        version_info["git_branch"] = git_branch
+    except Exception:
+        pass
+    
+    return version_info
