@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom'
 import { Camera, Sparkles, Zap, ArrowRight, Check } from 'lucide-react'
+import logo from '../assets/logo.png'
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/40 to-accent-50/20 dark:from-gray-900 dark:via-primary-950/30 dark:to-gray-800">
       {/* Header */}
       <header className="nav-glass sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gradient">ProductSnap</h1>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="Light Click" className="h-10 w-10" />
+            <h1 className="text-2xl font-bold text-gradient">Light Click</h1>
+          </div>
           <div className="flex gap-3">
             <Link to="/login" className="btn btn-secondary text-sm">
               Login
@@ -208,7 +212,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800 py-12 mt-20">
         <div className="container mx-auto px-6 text-center text-gray-600 dark:text-gray-400">
-          <p className="mb-2">© 2025 ProductSnap. All rights reserved.</p>
+          <p className="mb-2">© 2025 Light Click. All rights reserved.</p>
           <p className="text-sm">Transform your products with AI-powered photography ✨</p>
         </div>
       </footer>

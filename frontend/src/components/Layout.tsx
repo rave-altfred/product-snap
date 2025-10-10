@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { LogOut, Camera, FolderOpen, CreditCard, User, Home, Menu, X } from 'lucide-react'
 import { version } from '../version'
+import logo from '../assets/logo.png'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
@@ -35,8 +36,9 @@ export default function Layout() {
       {/* Mobile Header */}
       <header className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link to="/dashboard" onClick={closeMobileMenu}>
-            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">ProductSnap</h1>
+          <Link to="/dashboard" onClick={closeMobileMenu} className="flex items-center gap-2">
+            <img src={logo} alt="Light Click" className="h-8 w-8" />
+            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">Light Click</h1>
           </Link>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -52,8 +54,9 @@ export default function Layout() {
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <div className="p-6">
-            <Link to="/dashboard">
-              <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">ProductSnap</h1>
+            <Link to="/dashboard" className="flex items-center gap-3 group">
+              <img src={logo} alt="Light Click" className="h-10 w-10 transition-transform group-hover:scale-105" />
+              <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">Light Click</h1>
             </Link>
           </div>
           
@@ -108,8 +111,9 @@ export default function Layout() {
             />
             <div className="fixed top-0 left-0 w-80 max-w-xs h-full bg-white dark:bg-gray-800 shadow-xl">
               <div className="p-6">
-                <Link to="/dashboard" onClick={closeMobileMenu}>
-                  <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">ProductSnap</h1>
+                <Link to="/dashboard" onClick={closeMobileMenu} className="flex items-center gap-3">
+                  <img src={logo} alt="Light Click" className="h-10 w-10" />
+                  <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">Light Click</h1>
                 </Link>
               </div>
               
