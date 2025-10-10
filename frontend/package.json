@@ -18,7 +18,11 @@
     "test:mobile": "playwright test --project=mobile-iphone-light --project=mobile-pixel-light",
     "test:tablet": "playwright test --project=tablet-ipad-light",
     "test:debug": "playwright test --debug",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "version:patch": "npm version patch -m 'Bump version to %s' && git push && git push --tags",
+    "version:minor": "npm version minor -m 'Bump version to %s' && git push && git push --tags",
+    "version:major": "npm version major -m 'Bump version to %s' && git push && git push --tags",
+    "version:show": "node ../scripts/generate-version.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.8.4",
