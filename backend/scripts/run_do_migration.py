@@ -6,21 +6,30 @@ Usage: python scripts/run_do_migration.py
 
 import psycopg2
 import sys
+import os
 from pathlib import Path
 
 # Digital Ocean connection details
+# Password should be set via DB_PASSWORD environment variable
 DB_CONFIG = {
-    "host": "database-postgresql-do-user-25716918-0.d.db.ondigitalocean.com",
-    "port": 25060,
-    "user": "doadmin",
-    "password": "REDACTED_PASSWORD",
-    "database": "defaultdb",
+    "host": os.getenv("DB_HOST", "database-postgresql-do-user-25716918-0.d.db.ondigitalocean.com"),
+    "port": int(os.getenv("DB_PORT", "25060")),
+    "user": os.getenv("DB_USER", "doadmin"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME", "defaultdb"),
     "sslmode": "require"
 }
 
 def main():
     print("🔧 Running subscription enum migration on Digital Ocean database...")
     print()
+    
+    # Validate required environment variables
+    if not DB_CONFIG["password"]:
+        print("❌ Error: DB_PASSWORD environment variable is not set.")
+        print("   Please set it before running this script:")
+        print("   export DB_PASSWORD='your-password-here'")
+        sys.exit(1)
     
     # Get migration file path
     script_dir = Path(__file__).parent

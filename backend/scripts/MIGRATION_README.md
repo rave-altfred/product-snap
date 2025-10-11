@@ -45,7 +45,7 @@ psql \
   -f scripts/migration_fix_subscription_enums.sql
 ```
 
-You'll be prompted for the password: `REDACTED_PASSWORD`
+You'll be prompted for the password (use the DB_PASSWORD from your .env.production file)
 
 ## After Migration
 

@@ -34,11 +34,11 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile Header */}
-      <header className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <header className="lg:hidden bg-white dark:bg-gray-50 border-b border-gray-200 dark:border-gray-300 px-4 py-2 shadow-lg">
         <div className="flex items-center justify-between">
-          <Link to="/dashboard" onClick={closeMobileMenu} className="flex items-center gap-2">
-            <img src={logo} alt="Light Click" className="h-8 w-8" />
-            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">Light Click</h1>
+          <Link to="/dashboard" onClick={closeMobileMenu} className="flex items-center gap-3">
+            <img src={logo} alt="Light Click" className="h-10 w-10" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Light Click</h1>
           </Link>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -53,10 +53,10 @@ export default function Layout() {
       <div className="flex">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-          <div className="p-6">
+          <div className="p-4 bg-white dark:bg-gray-50 border-b border-gray-200 dark:border-gray-300 shadow-sm">
             <Link to="/dashboard" className="flex items-center gap-3 group">
-              <img src={logo} alt="Light Click" className="h-10 w-10 transition-transform group-hover:scale-105" />
-              <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">Light Click</h1>
+              <img src={logo} alt="Light Click" className="h-12 w-12 transition-transform group-hover:scale-105" />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent hover:from-primary-700 hover:to-accent-700 transition-all">Light Click</h1>
             </Link>
           </div>
           
@@ -110,10 +110,10 @@ export default function Layout() {
               onClick={closeMobileMenu}
             />
             <div className="fixed top-0 left-0 w-80 max-w-xs h-full bg-white dark:bg-gray-800 shadow-xl">
-              <div className="p-6">
+              <div className="p-4 bg-white dark:bg-gray-50 border-b border-gray-200 dark:border-gray-300">
                 <Link to="/dashboard" onClick={closeMobileMenu} className="flex items-center gap-3">
-                  <img src={logo} alt="Light Click" className="h-10 w-10" />
-                  <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">Light Click</h1>
+                  <img src={logo} alt="Light Click" className="h-12 w-12" />
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Light Click</h1>
                 </Link>
               </div>
               

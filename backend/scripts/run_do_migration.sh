@@ -8,11 +8,20 @@ echo "🔧 Running subscription enum migration on Digital Ocean database..."
 echo ""
 
 # Digital Ocean connection details
-DB_HOST="database-postgresql-do-user-25716918-0.d.db.ondigitalocean.com"
-DB_PORT="25060"
-DB_USER="doadmin"
-DB_NAME="defaultdb"
-DB_PASSWORD="REDACTED_PASSWORD"
+# DB_PASSWORD should be set as environment variable
+DB_HOST="${DB_HOST:-database-postgresql-do-user-25716918-0.d.db.ondigitalocean.com}"
+DB_PORT="${DB_PORT:-25060}"
+DB_USER="${DB_USER:-doadmin}"
+DB_NAME="${DB_NAME:-defaultdb}"
+DB_PASSWORD="${DB_PASSWORD}"
+
+# Validate required environment variables
+if [ -z "$DB_PASSWORD" ]; then
+    echo "❌ Error: DB_PASSWORD environment variable is not set."
+    echo "   Please set it before running this script:"
+    echo "   export DB_PASSWORD='your-password-here'"
+    exit 1
+fi
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

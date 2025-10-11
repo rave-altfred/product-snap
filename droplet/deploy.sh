@@ -180,7 +180,7 @@ docker-compose down || true
 
 echo ""
 echo "Starting services..."
-docker-compose --env-file .env.production up -d
+docker-compose up -d
 
 echo ""
 echo "Waiting for services to be healthy..."

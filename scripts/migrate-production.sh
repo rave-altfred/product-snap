@@ -21,8 +21,16 @@ fi
 echo ""
 echo "Running migrations..."
 
+# Validate DB_PASSWORD environment variable
+if [ -z "$DB_PASSWORD" ]; then
+    echo "Error: DB_PASSWORD environment variable is not set."
+    echo "Please set it before running this script:"
+    echo "  export DB_PASSWORD='your-password-here'"
+    exit 1
+fi
+
 # Set production database URL
-export DATABASE_URL="postgresql://doadmin:REDACTED_PASSWORD@database-postgresql-do-user-25716918-0.d.db.ondigitalocean.com:25060/defaultdb?sslmode=require"
+export DATABASE_URL="postgresql://doadmin:${DB_PASSWORD}@database-postgresql-do-user-25716918-0.d.db.ondigitalocean.com:25060/defaultdb?sslmode=require"
 
 # Run migrations in Docker container
 docker run --rm \

@@ -77,6 +77,9 @@ export const authApi = {
 export const userApi = {
   getMe: () =>
     api.get('/api/users/me'),
+  
+  getStats: () =>
+    api.get('/api/users/stats'),
 }
 
 // Jobs API

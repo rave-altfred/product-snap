@@ -90,7 +90,7 @@ export default function Library() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="px-6 py-8 sm:px-8 lg:px-12">
         <h1 className="text-3xl font-bold mb-8">Library</h1>
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -101,7 +101,7 @@ export default function Library() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="px-6 py-8 sm:px-8 lg:px-12">
         <h1 className="text-3xl font-bold mb-8">Library</h1>
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
@@ -111,7 +111,7 @@ export default function Library() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="px-6 py-4 sm:px-8 sm:py-6 lg:px-12 lg:py-8">
       <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Library</h1>
         <div className="flex gap-2">

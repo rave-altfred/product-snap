@@ -11,12 +11,12 @@ export interface VersionInfo {
 }
 
 export const versionInfo: VersionInfo = {
-  version: "1.0.0",
-  gitCommit: "dev",
-  gitBranch: "main",
-  gitTag: null,
-  buildDate: new Date().toISOString(),
-  fullVersion: "1.0.0-dev"
+  "version": "1.0.0",
+  "gitCommit": "7b39687",
+  "gitBranch": "main",
+  "gitTag": null,
+  "buildDate": "2025-10-11T13:42:33.076Z",
+  "fullVersion": "1.0.0-7b39687"
 };
 
 export const version = versionInfo.fullVersion;

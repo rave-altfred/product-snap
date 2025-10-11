@@ -8,57 +8,12 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"  # Only expose on localhost
+    env_file:
+      - .env.production
     environment:
-      # Database (External - DigitalOcean Managed)
-      DATABASE_URL: ${DATABASE_URL}
-      
-      # Redis (can be local or external)
+      # Override specific values (non-secrets)
       REDIS_URL: redis://redis:6379/0
-      
-      # App Config
-      APP_NAME: ${APP_NAME:-ProductSnap}
-      FRONTEND_URL: ${FRONTEND_URL}
-      BACKEND_URL: ${BACKEND_URL}
-      
-      # Security
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
-      
-      # External APIs
-      NANO_BANANA_API_KEY: ${NANO_BANANA_API_KEY}
-      N      # S3/Spaces Storage (DigitalOcean Spaces)
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-${S3_ENDPOINT}}
-      S3_BUCKET: ${S3_BUCKET}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
-      S3_REGION: ${S3_REGION:-us-east-1}
-      
-      # PayPal
-      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
-      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
-      PAYPAL_MODE: ${PAYPAL_MODE:-live}
-      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
-      PAYPAL_PLAN_ID_BASIC_MONTHLY: ${PAYPAL_PLAN_ID_BASIC_MONTHLY}
-      PAYPAL_PLAN_ID_BASIC_YEARLY: ${PAYPAL_PLAN_ID_BASIC_YEARLY}
-      PAYPAL_PLAN_ID_PRO_MONTHLY: ${PAYPAL_PLAN_ID_PRO_MONTHLY}
-      PAYPAL_PLAN_ID_PRO_YEARLY: ${PAYPAL_PLAN_ID_PRO_YEARLY}
-      
-      # Email/SMTP
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
-      
-      # Google OAuth (optional)
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
-      
-      # Logging
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      APP_NAME: ${APP_NAME:-Light Click}
     depends_on:
       redis:
         condition: service_healthy
@@ -82,47 +37,11 @@ services:
     container_name: ${PROJECT_NAME}-worker
     restart: unless-stopped
     command: python -m app.worker
+    env_file:
+      - .env.production
     environment:
-      # Database (External - DigitalOcean Managed)
-      DATABASE_URL: ${DATABASE_URL}
-      
-      # Redis
+      # Override specific values (non-secrets)
       REDIS_URL: redis://redis:6379/0
-      
-      # Security
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
-      
-      # External APIs
-      NANO_BANANA_API_KEY: ${NANO_BANANA_API_KEY}
-      N      # S3/Spaces Storage
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-${S3_ENDPOINT}}
-      S3_BUCKET: ${S3_BUCKET}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-      S3_SECRET_KEY: ${S3_SECRET_KEY}
-      S3_REGION: ${S3_REGION:-us-east-1}
-      
-      # PayPal
-      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
-      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
-      PAYPAL_MODE: ${PAYPAL_MODE:-live}
-      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
-      PAYPAL_PLAN_ID_BASIC_MONTHLY: ${PAYPAL_PLAN_ID_BASIC_MONTHLY}
-      PAYPAL_PLAN_ID_BASIC_YEARLY: ${PAYPAL_PLAN_ID_BASIC_YEARLY}
-      PAYPAL_PLAN_ID_PRO_MONTHLY: ${PAYPAL_PLAN_ID_PRO_MONTHLY}
-      PAYPAL_PLAN_ID_PRO_YEARLY: ${PAYPAL_PLAN_ID_PRO_YEARLY}
-      
-      # Email/SMTP
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
-      
-      # Logging
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       redis:
         condition: service_healthy
