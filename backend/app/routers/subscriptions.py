@@ -65,7 +65,7 @@ async def get_subscription_plans():
                 "currency": "USD",
                 "interval": "month",
                 "features": [
-                    "5 jobs per day",
+                    "5 jobs total (not daily)",
                     "1 concurrent job",
                     "Watermarked outputs",
                     "Basic support"
@@ -80,7 +80,6 @@ async def get_subscription_plans():
                 "features": [
                     "100 jobs per month",
                     "3 concurrent jobs",
-                    "No watermarks",
                     "Email support",
                     "Priority queue"
                 ]
@@ -91,11 +90,10 @@ async def get_subscription_plans():
                 "price": 99.99,
                 "currency": "USD",
                 "interval": "year",
-                "savings": "17%",
+                "savings": "Get 2 months free (Save about 17% compared to monthly)",
                 "features": [
                     "100 jobs per month",
                     "3 concurrent jobs",
-                    "No watermarks",
                     "Email support",
                     "Priority queue"
                 ]
@@ -103,11 +101,11 @@ async def get_subscription_plans():
             {
                 "id": "pro_monthly",
                 "name": "Pro",
-                "price": 39.90,
+                "price": 34.99,
                 "currency": "USD",
                 "interval": "month",
                 "features": [
-                    "1000 jobs per month",
+                    "500 jobs per month",
                     "5 concurrent jobs",
                     "Priority queue",
                     "Custom prompts",
@@ -118,12 +116,12 @@ async def get_subscription_plans():
             {
                 "id": "pro_yearly",
                 "name": "Pro",
-                "price": 399.90,
+                "price": 349.99,
                 "currency": "USD",
                 "interval": "year",
-                "savings": "17%",
+                "savings": "Get 2 months free (Save about 17% compared to monthly)",
                 "features": [
-                    "1000 jobs per month",
+                    "500 jobs per month",
                     "5 concurrent jobs",
                     "Priority queue",
                     "Custom prompts",

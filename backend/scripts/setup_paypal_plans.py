@@ -178,7 +178,7 @@ def main():
     basic_product_id = create_product(
         access_token,
         "ProductSnap Basic",
-        "ProductSnap Basic subscription with enhanced features and no watermarks"
+        "ProductSnap Basic subscription with enhanced features"
     )
     
     if not basic_product_id:
@@ -192,7 +192,7 @@ def main():
     pro_product_id = create_product(
         access_token,
         "ProductSnap Pro",
-        "ProductSnap Pro subscription with unlimited features, custom prompts, and priority support"
+        "ProductSnap Pro subscription with 500 shots per month, custom prompts, and priority support"
     )
     
     if not pro_product_id:
@@ -236,13 +236,13 @@ def main():
     print()
     
     # Create Pro Monthly Plan
-    print("💳 Creating Pro Monthly Plan ($39.90/month)...")
+    print("💳 Creating Pro Monthly Plan ($34.99/month)...")
     pro_monthly_id = create_billing_plan(
         access_token,
         pro_product_id,
         "Pro Monthly",
-        "ProductSnap Pro - Billed Monthly at $39.90/month",
-        "39.90",
+        "ProductSnap Pro - Billed Monthly at $34.99/month",
+        "34.99",
         "MONTH",
         1
     )
@@ -251,13 +251,13 @@ def main():
     print()
     
     # Create Pro Yearly Plan
-    print("💳 Creating Pro Yearly Plan ($399.90/year)...")
+    print("💳 Creating Pro Yearly Plan ($349.99/year)...")
     pro_yearly_id = create_billing_plan(
         access_token,
         pro_product_id,
         "Pro Yearly",
-        "ProductSnap Pro - Billed Annually at $399.90/year (save 17%)",
-        "399.90",
+        "ProductSnap Pro - Billed Annually at $349.99/year (Get 2 months free)",
+        "349.99",
         "YEAR",
         1
     )

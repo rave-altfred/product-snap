@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     FREE_CONCURRENT_JOBS: int = 1
     PERSONAL_JOBS_PER_MONTH: int = 100
     PERSONAL_CONCURRENT_JOBS: int = 3
-    PRO_JOBS_PER_MONTH: int = 1000
+    PRO_JOBS_PER_MONTH: int = 500
     PRO_CONCURRENT_JOBS: int = 5
     
     # File Upload
