@@ -1,6 +1,7 @@
 """
 Background worker for processing image generation jobs.
 Run with: python -m app.worker
+v2.1 - Testing cache
 """
 import asyncio
 import logging

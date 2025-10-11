@@ -56,6 +56,7 @@ async def get_my_subscription(
 @router.get("/plans")
 async def get_subscription_plans():
     """Get available subscription plans with pricing."""
+    # v2.1 - Testing cache
     return {
         "plans": [
             {
@@ -65,68 +66,39 @@ async def get_subscription_plans():
                 "currency": "USD",
                 "interval": "month",
                 "features": [
-                    "5 jobs total (not daily)",
-                    "1 concurrent job",
-                    "Watermarked outputs",
-                    "Basic support"
+                    "5 shots",
+                    "All three modes",
+                    "Watermarked outputs"
                 ]
             },
             {
-                "id": "basic_monthly",
+                "id": "basic",
                 "name": "Basic",
                 "price": 9.99,
                 "currency": "USD",
                 "interval": "month",
+                "yearly_price": 99.99,
+                "yearly_savings": "Get 2 months free (Save about 17% compared to monthly)",
                 "features": [
-                    "100 jobs per month",
-                    "3 concurrent jobs",
-                    "Email support",
-                    "Priority queue"
+                    "100 shots per month",
+                    "All three modes",
+                    "Email support"
                 ]
             },
             {
-                "id": "basic_yearly",
-                "name": "Basic",
-                "price": 99.99,
-                "currency": "USD",
-                "interval": "year",
-                "savings": "Get 2 months free (Save about 17% compared to monthly)",
-                "features": [
-                    "100 jobs per month",
-                    "3 concurrent jobs",
-                    "Email support",
-                    "Priority queue"
-                ]
-            },
-            {
-                "id": "pro_monthly",
+                "id": "pro",
                 "name": "Pro",
                 "price": 34.99,
                 "currency": "USD",
                 "interval": "month",
+                "yearly_price": 349.99,
+                "yearly_savings": "Get 2 months free (Save about 17% compared to monthly)",
                 "features": [
-                    "500 jobs per month",
-                    "5 concurrent jobs",
+                    "500 shots per month",
+                    "All three modes",
                     "Priority queue",
-                    "Custom prompts",
-                    "Priority support",
-                    "API access"
-                ]
-            },
-            {
-                "id": "pro_yearly",
-                "name": "Pro",
-                "price": 349.99,
-                "currency": "USD",
-                "interval": "year",
-                "savings": "Get 2 months free (Save about 17% compared to monthly)",
-                "features": [
-                    "500 jobs per month",
-                    "5 concurrent jobs",
-                    "Priority queue",
-                    "Custom prompts",
-                    "Priority support",
-                    "API access"
+                    "Custom prompts & API access",
+                    "Priority support"
                 ]
             }
         ]

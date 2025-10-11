@@ -8,7 +8,8 @@ interface Plan {
   price: number
   currency: string
   interval: string
-  savings?: string
+  yearly_price?: number
+  yearly_savings?: string
   features: string[]
 }
 
@@ -20,6 +21,7 @@ interface Subscription {
 }
 
 export default function Billing() {
+  // v2.1 - Testing cache
   const [plans, setPlans] = useState<Plan[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
@@ -78,16 +80,23 @@ export default function Billing() {
     }
   }
 
-  const getFilteredPlans = () => {
-    return plans.filter(plan => {
-      if (plan.id === 'free') return false
-      if (billingInterval === 'monthly') {
-        return plan.interval === 'month'
-      } else {
-        return plan.interval === 'year'
-      }
-    })
+  const getPaidPlans = () => {
+    // Filter out free plan since we show it manually
+    return plans.filter(plan => plan.id !== 'free')
   }
+
+  const getFreePlan = (): Plan => ({
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    currency: 'USD',
+    interval: 'month',
+    features: [
+      '5 shots',
+      'All three modes',
+      'Watermarked outputs'
+    ]
+  })
 
   const getCurrentPlanName = () => {
     if (!subscription) return 'Free'
@@ -170,53 +179,98 @@ export default function Billing() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {getFilteredPlans().map((plan) => (
-            <div
-              key={plan.id}
-              className={`card border-2 transition-all ${
-                selectedPlan === plan.id
-                  ? 'border-primary-500 dark:border-primary-600'
-                  : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold">{plan.name}</h3>
-                  <div className="mt-2">
-                    <span className="text-3xl font-extrabold">${plan.price}</span>
-                    <span className="text-gray-500 dark:text-gray-400 ml-1">/{plan.interval}</span>
-                  </div>
-                  {plan.savings && (
-                    <div className="text-sm text-success-600 font-semibold mt-1">
-                      Save {plan.savings}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <ul className="space-y-2 mb-6">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <Check className="text-success-600 flex-shrink-0 mt-0.5" size={16} />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleSubscribe(plan.id)}
-                disabled={subscription?.plan === plan.id}
-                className={`btn w-full ${
-                  subscription?.plan === plan.id
-                    ? 'btn-secondary cursor-not-allowed'
-                    : 'btn-primary'
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Free Plan */}
+          {(() => {
+            const freePlan = getFreePlan()
+            return (
+              <div
+                key={freePlan.id}
+                className={`card-flat border-2 transition-all ${
+                  subscription?.plan === 'free' || !subscription
+                    ? 'border-primary-500 dark:border-primary-600'
+                    : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
-                {subscription?.plan === plan.id ? 'Current Plan' : 'Subscribe'}
-              </button>
-            </div>
-          ))}
+                <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">STARTER</div>
+                <h3 className="text-2xl font-bold mb-4">{freePlan.name}</h3>
+                <div className="mb-6">
+                  <span className="text-5xl font-extrabold">${freePlan.price}</span>
+                  <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
+                </div>
+                <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
+                  {freePlan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  disabled={subscription?.plan === 'free' || !subscription}
+                  className={`btn w-full ${
+                    subscription?.plan === 'free' || !subscription
+                      ? 'btn-secondary cursor-not-allowed'
+                      : 'btn-primary'
+                  }`}
+                >
+                  {subscription?.plan === 'free' || !subscription ? 'Current Plan' : 'Downgrade'}
+                </button>
+              </div>
+            )
+          })()}
+          
+          {/* Basic and Pro Plans */}
+          {getPaidPlans().map((plan) => {
+            const isBasicPlan = plan.name.toLowerCase() === 'basic'
+            const displayPrice = billingInterval === 'monthly' ? plan.price : plan.yearly_price
+            const displayInterval = billingInterval === 'monthly' ? 'month' : 'year'
+            
+            return (
+              <div
+                key={plan.id}
+                className={`card ${isBasicPlan ? 'border-2 border-primary-500 dark:border-primary-600 relative overflow-hidden' : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'} transition-all`}
+              >
+                {isBasicPlan && (
+                  <div className="absolute top-0 right-0 bg-primary-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                    POPULAR
+                  </div>
+                )}
+                <div className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-2">
+                  {plan.name.toUpperCase()}
+                </div>
+                <h3 className="text-2xl font-bold mb-4">{plan.name}</h3>
+                <div className="mb-6">
+                  <span className="text-5xl font-extrabold">${displayPrice}</span>
+                  <span className="text-gray-500 dark:text-gray-400 ml-2">/{displayInterval}</span>
+                </div>
+                {billingInterval === 'yearly' && plan.yearly_savings && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    <span className="text-success-600 font-semibold">{plan.yearly_savings}</span>
+                  </div>
+                )}
+                <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => handleSubscribe(`${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}`)}
+                  disabled={subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}`}
+                  className={`btn w-full ${
+                    subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}`
+                      ? 'btn-secondary cursor-not-allowed'
+                      : 'btn-primary'
+                  }`}
+                >
+                  {subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}` ? 'Current Plan' : 'Subscribe'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
 
