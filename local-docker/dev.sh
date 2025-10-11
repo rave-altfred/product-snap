@@ -61,7 +61,7 @@ for arg in "$@"; do
 done
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║   Product Snap Local Development      ║${NC}"
+echo -e "${BLUE}║   Product Snap Local Development       ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}\n"
 
 # Build services (always cleans dangling images automatically)
