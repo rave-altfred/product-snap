@@ -97,7 +97,6 @@ async def get_subscription_plans():
                     "500 shots per month",
                     "All three modes",
                     "Priority queue",
-                    "Custom prompts & API access",
                     "Priority support"
                 ]
             }

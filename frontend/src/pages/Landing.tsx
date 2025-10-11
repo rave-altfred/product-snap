@@ -193,10 +193,6 @@ export default function Landing() {
               </li>
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
-                <span>Custom prompts & API access</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
                 <span>Priority support</span>
               </li>
             </ul>

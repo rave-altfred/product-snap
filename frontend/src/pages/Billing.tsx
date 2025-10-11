@@ -186,7 +186,7 @@ export default function Billing() {
             return (
               <div
                 key={freePlan.id}
-                className={`card-flat border-2 transition-all ${
+                className={`card-flat border-2 transition-all flex flex-col ${
                   subscription?.plan === 'free' || !subscription
                     ? 'border-primary-500 dark:border-primary-600'
                     : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
@@ -198,7 +198,7 @@ export default function Billing() {
                   <span className="text-5xl font-extrabold">${freePlan.price}</span>
                   <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
                 </div>
-                <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
+                <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300 flex-grow">
                   {freePlan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
                       <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
@@ -229,7 +229,7 @@ export default function Billing() {
             return (
               <div
                 key={plan.id}
-                className={`card ${isBasicPlan ? 'border-2 border-primary-500 dark:border-primary-600 relative overflow-hidden' : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'} transition-all`}
+                className={`card flex flex-col ${isBasicPlan ? 'border-2 border-primary-500 dark:border-primary-600 relative overflow-hidden' : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'} transition-all`}
               >
                 {isBasicPlan && (
                   <div className="absolute top-0 right-0 bg-primary-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
@@ -249,7 +249,7 @@ export default function Billing() {
                     <span className="text-success-600 font-semibold">{plan.yearly_savings}</span>
                   </div>
                 )}
-                <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300">
+                <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300 flex-grow">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
                       <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
