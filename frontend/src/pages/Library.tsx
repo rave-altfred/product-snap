@@ -111,7 +111,7 @@ export default function Library() {
   }
 
   return (
-    <div className="px-6 py-4 sm:px-8 sm:py-6 lg:px-12 lg:py-8">
+    <div className="px-6 py-4 sm:px-8 sm:py-6 lg:px-12 lg:py-8 animate-fade-in">
       <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Library</h1>
         <div className="flex gap-2">

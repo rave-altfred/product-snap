@@ -163,8 +163,8 @@ export default function Layout() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 lg:pl-64">
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 lg:pl-64 bg-gray-50 dark:bg-gray-900">
+          <div className="min-h-screen">
             <Outlet />
           </div>
         </main>

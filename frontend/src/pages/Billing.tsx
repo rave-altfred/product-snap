@@ -95,19 +95,8 @@ export default function Billing() {
     return plan.charAt(0).toUpperCase() + plan.slice(1)
   }
 
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-8"></div>
-          <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto animate-fade-in" style={{ opacity: loading ? 0.5 : 1, transition: 'opacity 0.15s ease-in-out' }}>
       <h1 className="text-3xl font-bold mb-2">Billing & Subscriptions</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8">Manage your subscription and payment methods</p>
 

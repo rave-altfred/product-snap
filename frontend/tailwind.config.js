@@ -56,14 +56,14 @@ export default {
         'glow-lg': '0 0 40px rgba(0, 212, 255, 0.4)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.5s ease-out',
         'scale-in': 'scaleIn 0.3s ease-out',
         'glow': 'glow 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0' },
+          '0%': { opacity: '0.85' },
           '100%': { opacity: '1' },
         },
         slideUp: {
