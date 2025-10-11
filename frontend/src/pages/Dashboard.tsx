@@ -42,7 +42,7 @@ export default function Dashboard() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-gradient">Welcome Back!</h1>
-        <p className="text-gray-600 dark:text-gray-300">Ready to create something amazing?</p>
+        <p className="text-gray-700 dark:text-gray-300">Ready to create something amazing?</p>
       </div>
       
       {/* Quick Actions */}
@@ -53,8 +53,8 @@ export default function Dashboard() {
               <Camera size={28} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold mb-1 group-hover:text-primary-600 transition-colors">New Shoot</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Create stunning product shots with AI</p>
+              <h2 className="text-xl font-bold mb-1 text-gray-900 dark:text-gray-100 group-hover:text-primary-600 transition-colors">New Image</h2>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Create stunning product images with AI</p>
             </div>
           </div>
         </Link>
@@ -65,8 +65,8 @@ export default function Dashboard() {
               <FolderOpen size={28} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold mb-1 group-hover:text-primary-600 transition-colors">Library</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Browse your generated images</p>
+              <h2 className="text-xl font-bold mb-1 text-gray-900 dark:text-gray-100 group-hover:text-primary-600 transition-colors">Library</h2>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Browse your generated images</p>
             </div>
           </div>
         </Link>
@@ -101,37 +101,37 @@ export default function Dashboard() {
           <>
             <div className="stat-card">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  {stats.period === 'day' ? 'SHOTS TODAY' : 'SHOTS THIS MONTH'}
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-400">
+                  {stats.period === 'day' ? 'IMAGES GENERATED TODAY' : 'IMAGES GENERATED THIS MONTH'}
                 </span>
                 <Zap className="text-primary-600" size={20} />
               </div>
-              <p className="text-3xl font-bold">
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 {stats.period === 'day' && stats.today_limit
                   ? `${stats.today_usage} / ${stats.today_limit}`
                   : `${stats.current_period_usage} / ${stats.current_period_limit}`
                 }
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {stats.remaining_jobs} remaining this {stats.period}
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                {stats.remaining_jobs} remaining
               </p>
             </div>
             
             <div className="stat-card">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">TOTAL SHOTS</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-400">TOTAL IMAGES GENERATED</span>
                 <ImageIcon className="text-primary-600" size={20} />
               </div>
-              <p className="text-3xl font-bold">{stats.total_jobs}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All time</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.total_jobs}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">All time</p>
             </div>
             
             <div className="stat-card">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">PLAN</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-400">PLAN</span>
                 <Camera className="text-primary-600" size={20} />
               </div>
-              <p className="text-3xl font-bold">{stats.plan}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.plan}</p>
               {stats.plan === 'Free' ? (
                 <Link to="/billing" className="text-xs text-primary-600 hover:text-primary-700 mt-1 inline-block">Upgrade →</Link>
               ) : (

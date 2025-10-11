@@ -276,7 +276,7 @@ export default function NewShoot() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">New Shoot</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">New Image</h1>
       
       <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
         {/* Image Upload */}
@@ -537,7 +537,7 @@ export default function NewShoot() {
             disabled={!selectedFile || loading}
             className="btn btn-primary w-full sm:w-auto px-6 sm:px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Job...' : 'Create Shoot'}
+            {loading ? 'Creating Job...' : 'Create Image'}
           </button>
         </div>
       </form>

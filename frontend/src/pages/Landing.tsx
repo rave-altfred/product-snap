@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Camera, Sparkles, Zap, ArrowRight, Check } from 'lucide-react'
 import logo from '../assets/logo.png'
 import ProcessBanner from '../components/ProcessBanner'
+import Footer from '../components/Footer'
 
 export default function Landing() {
   return (
@@ -58,7 +59,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2">
             <Check className="text-success-600" size={20} />
-            <span>5 free shots</span>
+            <span>5 free image generations</span>
           </div>
         </div>
       </section>
@@ -124,7 +125,7 @@ export default function Landing() {
             <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300 flex-grow">
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
-                <span>5 shots</span>
+                <span>5 image generations</span>
               </li>
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
@@ -154,7 +155,7 @@ export default function Landing() {
             <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300 flex-grow">
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
-                <span>100 shots per month</span>
+                <span>100 image generations per month</span>
               </li>
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
@@ -181,7 +182,7 @@ export default function Landing() {
             <ul className="space-y-3 mb-8 text-gray-600 dark:text-gray-300 flex-grow">
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
-                <span>500 shots per month</span>
+                <span>500 image generations per month</span>
               </li>
               <li className="flex items-start gap-3">
                 <Check className="text-success-600 flex-shrink-0 mt-0.5" size={20} />
@@ -202,12 +203,7 @@ export default function Landing() {
       </section>
       
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 py-12 mt-20">
-        <div className="container mx-auto px-6 text-center text-gray-600 dark:text-gray-400">
-          <p className="mb-2">© 2025 Light Click. All rights reserved.</p>
-          <p className="text-sm">Transform your products with AI-powered photography ✨</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

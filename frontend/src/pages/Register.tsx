@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { authApi, userApi } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import Footer from '../components/Footer'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -113,8 +114,9 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="max-w-md w-full card">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="max-w-md w-full card">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">Create Account</h2>
         
         {error && (
@@ -204,7 +206,9 @@ export default function Register() {
             Login
           </Link>
         </p>
+        </div>
       </div>
+      <Footer />
     </div>
   )
 }

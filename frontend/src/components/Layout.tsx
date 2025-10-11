@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { LogOut, Camera, FolderOpen, CreditCard, User, Home, Menu, X } from 'lucide-react'
 import { version } from '../version'
 import logo from '../assets/logo.png'
+import Footer from './Footer'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
@@ -25,7 +26,7 @@ export default function Layout() {
 
   const navItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard' },
-    { to: '/new-shoot', icon: Camera, label: 'New Shoot' },
+    { to: '/new-shoot', icon: Camera, label: 'New Image' },
     { to: '/library', icon: FolderOpen, label: 'Library' },
     { to: '/billing', icon: CreditCard, label: 'Billing' },
     { to: '/account', icon: User, label: 'Account' },
@@ -80,7 +81,7 @@ export default function Layout() {
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="px-4 pt-4 pb-10 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.full_name || user?.email}</p>
@@ -138,7 +139,7 @@ export default function Layout() {
                 })}
               </nav>
 
-              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-10 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.full_name || user?.email}</p>
@@ -163,10 +164,11 @@ export default function Layout() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 lg:pl-64 bg-gray-50 dark:bg-gray-900">
-          <div className="min-h-screen">
+        <main className="flex-1 lg:pl-64 flex flex-col min-h-screen">
+          <div className="flex-1 bg-gray-50 dark:bg-gray-900">
             <Outlet />
           </div>
+          <Footer />
         </main>
       </div>
     </div>

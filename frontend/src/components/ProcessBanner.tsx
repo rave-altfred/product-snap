@@ -5,16 +5,16 @@ import banner3 from '../assets/banner3.png'
 
 export default function ProcessBanner() {
   return (
-    <section className="bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-950 dark:to-accent-950 py-24">
+    <section className="bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-primary-950 dark:to-accent-950 py-24">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
-          <div className="inline-block px-4 py-2 bg-white/80 dark:bg-gray-800/80 rounded-full mb-6 backdrop-blur-sm border border-primary-200 dark:border-primary-700">
-            <span className="text-primary-700 dark:text-primary-300 font-semibold text-sm">📸 From Phone to Professional</span>
+          <div className="inline-block px-4 py-2 bg-white dark:bg-gray-800/80 rounded-full mb-6 backdrop-blur-sm border border-primary-300 dark:border-primary-700 shadow-md">
+            <span className="text-primary-800 dark:text-primary-300 font-semibold text-sm">📸 From Phone to Professional</span>
           </div>
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
             Transform Any Photo in <span className="text-gradient">3 Simple Steps</span>
           </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl text-gray-800 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
             See how effortlessly you can turn a quick phone snapshot into stunning, 
             professional product photography that drives sales.
           </p>
@@ -107,7 +107,7 @@ export default function ProcessBanner() {
         {/* Call to action */}
         <div className="text-center mt-16">
           <div className="inline-flex flex-col sm:flex-row gap-4 items-center">
-            <div className="text-lg text-gray-600 dark:text-gray-300 font-medium">
+            <div className="text-lg text-gray-800 dark:text-gray-300 font-medium">
               Ready to transform your photos?
             </div>
             <div className="flex gap-3">
@@ -120,7 +120,7 @@ export default function ProcessBanner() {
               </a>
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+          <p className="text-sm text-gray-700 dark:text-gray-400 mt-4">
             ✨ No setup • No credit card • 5 free transformations
           </p>
         </div>

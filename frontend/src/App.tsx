@@ -9,6 +9,8 @@ import NewShoot from './pages/NewShoot'
 import Library from './pages/Library'
 import Billing from './pages/Billing'
 import Account from './pages/Account'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import Layout from './components/Layout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -49,6 +51,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth/callback" element={<OAuthCallback />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       
       <Route element={<Layout />}>
         <Route

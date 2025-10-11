@@ -26,7 +26,6 @@ export default function Billing() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPlan] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
 
   useEffect(() => {
@@ -92,7 +91,7 @@ export default function Billing() {
     currency: 'USD',
     interval: 'month',
     features: [
-      '5 shots',
+      '5 image generations',
       'All three modes',
       'Watermarked outputs'
     ]

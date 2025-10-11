@@ -66,7 +66,7 @@ async def get_subscription_plans():
                 "currency": "USD",
                 "interval": "month",
                 "features": [
-                    "5 shots",
+                    "5 image generations",
                     "All three modes",
                     "Watermarked outputs"
                 ]
@@ -80,7 +80,7 @@ async def get_subscription_plans():
                 "yearly_price": 99.99,
                 "yearly_savings": "Get 2 months free (Save about 17% compared to monthly)",
                 "features": [
-                    "100 shots per month",
+                    "100 image generations per month",
                     "All three modes",
                     "Email support"
                 ]
@@ -94,7 +94,7 @@ async def get_subscription_plans():
                 "yearly_price": 349.99,
                 "yearly_savings": "Get 2 months free (Save about 17% compared to monthly)",
                 "features": [
-                    "500 shots per month",
+                    "500 image generations per month",
                     "All three modes",
                     "Priority queue",
                     "Priority support"

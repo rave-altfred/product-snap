@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-gradient-to-br from-gray-50 via-primary-50/40 to-accent-50/20 dark:from-gray-900 dark:via-primary-950/30 dark:to-gray-800 text-gray-900 dark:text-gray-100;
+    @apply bg-gradient-to-br from-gray-100 via-blue-50/80 to-cyan-50/60 dark:from-gray-900 dark:via-primary-950/30 dark:to-gray-800 text-gray-900 dark:text-gray-100;
     @apply min-h-screen;
   }
   
@@ -29,20 +29,20 @@
   }
 
   .btn-secondary {
-    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm;
-    @apply border-2 border-gray-200 dark:border-gray-700;
-    @apply text-gray-700 dark:text-gray-200;
-    @apply hover:bg-white dark:hover:bg-gray-700;
-    @apply hover:border-primary-300 dark:hover:border-primary-700;
+    @apply bg-white dark:bg-gray-800/80 backdrop-blur-sm;
+    @apply border-2 border-gray-300 dark:border-gray-700;
+    @apply text-gray-800 dark:text-gray-200;
+    @apply hover:bg-gray-50 dark:hover:bg-gray-700;
+    @apply hover:border-primary-400 dark:hover:border-primary-700;
   }
 
   /* Modern Inputs */
   .input {
     @apply w-full px-5 py-3.5 rounded-xl;
-    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm;
-    @apply border-2 border-gray-200 dark:border-gray-700;
+    @apply bg-white dark:bg-gray-800/80 backdrop-blur-sm;
+    @apply border-2 border-gray-300 dark:border-gray-700;
     @apply text-gray-900 dark:text-gray-100;
-    @apply placeholder-gray-400 dark:placeholder-gray-500;
+    @apply placeholder-gray-500 dark:placeholder-gray-500;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
     @apply transition-all duration-200;
     @apply shadow-sm focus:shadow-md;
@@ -50,9 +50,9 @@
 
   /* Glass Card Effect */
   .card {
-    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-md;
-    @apply border border-white/20 dark:border-gray-700/50;
-    @apply rounded-2xl shadow-glass dark:shadow-glass-dark;
+    @apply bg-white dark:bg-gray-800/80 backdrop-blur-md;
+    @apply border border-gray-200 dark:border-gray-700/50;
+    @apply rounded-2xl shadow-lg dark:shadow-glass-dark;
     @apply p-6 sm:p-8;
     @apply transition-all duration-300;
     @apply hover:shadow-xl hover:scale-[1.02];
@@ -69,8 +69,9 @@
   /* Stat Card */
   .stat-card {
     @apply card;
-    @apply bg-gradient-to-br from-white/90 to-primary-50/50;
+    @apply bg-gradient-to-br from-white to-blue-50/80;
     @apply dark:from-gray-800/90 dark:to-primary-950/30;
+    @apply border-gray-200 dark:border-gray-700;
   }
 
   /* Feature Card */
@@ -94,9 +95,9 @@
 
   /* Glass Navigation */
   .nav-glass {
-    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg;
-    @apply border-b border-white/20 dark:border-gray-800/50;
-    @apply shadow-lg;
+    @apply bg-white/90 dark:bg-gray-900/70 backdrop-blur-lg;
+    @apply border-b border-gray-200 dark:border-gray-800/50;
+    @apply shadow-md;
   }
 
   /* Gradient Text */
