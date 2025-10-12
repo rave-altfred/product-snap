@@ -74,8 +74,8 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
         await rate_limiter.increment_concurrent(user.id)
         
         try:
-            # Get signed URL for input image
-            input_url = storage_service.get_signed_url(job.input_url, expiration=3600)
+            # Pass S3 URL directly - the nano_banana_client will download from S3 internally
+            input_url = job.input_url
             
             # Parse prompt metadata (sub-options)
             import json
@@ -93,7 +93,7 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse prompt metadata for job {job_id}")
             
-            # Create Nano Banana job
+            # Create Nano Banana job (Gemini generates synchronously)
             nb_response = await nano_banana_client.create_job(
                 input_image_url=input_url,
                 mode=job.mode,
@@ -106,40 +106,37 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
             job.nano_banana_job_id = nb_response.get("job_id")
             db.commit()
             
-            # Poll for completion
-            result = await nano_banana_client.poll_until_complete(
-                job.nano_banana_job_id,
-                max_wait_seconds=300
-            )
+            # For Gemini, generation is synchronous - images are in the response
+            generated_images = nb_response.get("generated_images", [])
             
-            # Get the generated prompt for mock mode
-            generated_prompt = nano_banana_client.get_prompt(
-                job.mode,
-                job.prompt_override,
-                shadow_option,
-                model_gender,
-                scene_environment
-            )
+            if not generated_images:
+                # Fallback: try polling (for other APIs)
+                result = await nano_banana_client.poll_until_complete(
+                    job.nano_banana_job_id,
+                    max_wait_seconds=300
+                )
+                generated_images = result.get("generated_images", [])
             
-            # Download and store results
+            # Store generated images to S3
+            import base64
             result_urls = []
-            for result_url in result.get("output_urls", [result.get("output_url")]):
-                if result_url:
-                    result_bytes = await nano_banana_client.download_result(
-                        result_url,
-                        prompt=generated_prompt,
-                        mode=job.mode.value,
-                        job_id=job.id
-                    )
+            for idx, image_base64 in enumerate(generated_images):
+                try:
+                    # Decode base64 image
+                    image_bytes = base64.b64decode(image_base64)
+                    logger.info(f"Decoded image {idx+1}/{len(generated_images)}, size: {len(image_bytes)} bytes")
                     
                     # Upload to storage
                     s3_url = storage_service.upload_bytes(
-                        result_bytes,
+                        image_bytes,
                         f"result_{uuid.uuid4()}.png",
                         "image/png",
                         folder="results"
                     )
                     result_urls.append(s3_url)
+                    logger.info(f"Uploaded generated image to {s3_url}")
+                except Exception as e:
+                    logger.error(f"Failed to process generated image {idx+1}: {e}")
             
             # Create thumbnail from first result
             if result_urls:

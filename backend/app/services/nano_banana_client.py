@@ -23,9 +23,14 @@ class NanoBananaClient:
             "Pure white (#FFFFFF) background. No background props. No text. Professional product photography."
         ),
         JobMode.MODEL_TRYON: (
-            "Present the product on a realistic model. Maintain correct scale and placement. "
-            "Clean studio lighting. Neutral backdrop. Focus on product clarity. "
-            "Natural pose, professional model."
+            "Create a realistic product try-on photo showing a professional model wearing or using the product."
+            "The product type is not specified — first analyze and infer what kind of product it is (for example: sunglasses, jewelry, hat, shoes, watch, handbag, etc.) and research how such products are usually presented in professional catalog or ecommerce photography."
+            "Use appropriate lighting, composition, and model pose typical for that product category."
+            "The model should appear natural, confident, and stylish, following poses and expressions seen in commercial fashion photography for that type of item."
+            "Keep the background clean, minimal, and studio-like unless lifestyle context is commonly used for that product."
+            "Ensure that the product is clearly visible, well-lit, and in focus."
+            "Produce a high-quality, photorealistic image suitable for ecommerce or advertising use."
+            "photorealistic professional product try-on, model wearing or using the product, AI should infer typical presentation for the product category, commercial fashion style, accurate lighting, natural confident pose, minimal studio background, high detail, soft shadows, ecommerce photography look"
         ),
         JobMode.LIFESTYLE_SCENE: (
             "Place the product in a natural setting that fits the category. "
@@ -37,15 +42,33 @@ class NanoBananaClient:
     def __init__(self):
         self.api_key = settings.NANO_BANANA_API_KEY
         self.api_url = settings.NANO_BANANA_API_URL
+        self.project_id = settings.GOOGLE_CLOUD_PROJECT_ID
+        self.use_vertex_ai = settings.USE_VERTEX_AI
         self.mode = settings.IMAGE_GENERATION_MODE
+        
+        # Initialize auth for Vertex AI if enabled
+        if self.use_vertex_ai:
+            try:
+                import google.auth
+                from google.auth.transport.requests import Request
+                
+                # Get default credentials (from ADC or environment)
+                self.credentials, self.auth_project = google.auth.default(
+                    scopes=['https://www.googleapis.com/auth/cloud-platform']
+                )
+                logger.info(f"Using Vertex AI with project: {self.project_id}")
+            except Exception as e:
+                logger.error(f"Failed to initialize Vertex AI auth: {e}")
+                logger.info("Falling back to API key mode")
+                self.use_vertex_ai = False
+        
         self.client = httpx.AsyncClient(
-            timeout=30.0,
+            timeout=60.0,  # Increased timeout for image generation
             headers={
-                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json"
             }
         )
-        logger.info(f"NanoBananaClient initialized in {self.mode} mode")
+        logger.info(f"NanoBananaClient initialized in {self.mode} mode (Vertex AI: {self.use_vertex_ai})")
     
     def get_prompt(
         self, 
@@ -118,23 +141,131 @@ class NanoBananaClient:
             }
         
         # Live mode - actual API call
+        import base64
+        from app.services.storage_service import storage_service
+        
+        if self.use_vertex_ai:
+            # Vertex AI: Gemini 2.5 Flash Image (multimodal with image generation)
+            model = "gemini-2.5-flash-image"
+            endpoint = f"https://aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/us-central1/publishers/google/models/{model}:generateContent"
+        else:
+            # Generative Language API: Gemini 2.5 Flash Image
+            model = "gemini-2.5-flash-image"
+            endpoint = f"{self.api_url}/v1beta/models/{model}:generateContent"
+        
+        # Download the image from S3 and convert to base64
+        try:
+            # If input_image_url is an s3:// URL, download directly from S3
+            # If it's a signed URL, parse it to get the S3 key and download from S3
+            if input_image_url.startswith('s3://'):
+                logger.info(f"Downloading image from S3: {input_image_url}")
+                image_bytes = storage_service.download_file(input_image_url)
+                if not image_bytes:
+                    raise Exception("Failed to download image from S3")
+            else:
+                # Try to download from URL (signed URL)
+                logger.info(f"Downloading image from URL: {input_image_url}")
+                img_response = await self.client.get(input_image_url)
+                img_response.raise_for_status()
+                image_bytes = img_response.content
+            
+            image_data = base64.b64encode(image_bytes).decode('utf-8')
+            
+            # Detect content type (default to jpeg)
+            content_type = 'image/jpeg'
+            if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                content_type = 'image/png'
+            elif image_bytes[:2] == b'\xff\xd8':
+                content_type = 'image/jpeg'
+            elif image_bytes[:4] == b'RIFF' and image_bytes[8:12] == b'WEBP':
+                content_type = 'image/webp'
+            
+            logger.info(f"Image downloaded, size: {len(image_bytes)} bytes, type: {content_type}")
+        except Exception as e:
+            logger.error(f"Failed to download input image: {e}")
+            raise
+        
+        # Vertex AI expects the image as inline base64 data
         payload = {
-            "input_image": input_image_url,
-            "prompt": prompt,
-            "mode": mode.value,
-            "output_format": "png",
-            "quality": "high"
+            "contents": [{
+                "role": "user",
+                "parts": [
+                    {
+                        "text": prompt
+                    },
+                    {
+                        "inline_data": {
+                            "mime_type": content_type,
+                            "data": image_data
+                        }
+                    }
+                ]
+            }],
+            "generation_config": {
+                "temperature": 0.4,
+                "top_p": 1.0,
+                "top_k": 32,
+                "max_output_tokens": 2048,
+            }
         }
         
         try:
-            response = await self.client.post(
-                f"{self.api_url}/v1/generate",
-                json=payload
-            )
-            response.raise_for_status()
-            return response.json()
+            if self.use_vertex_ai:
+                # Vertex AI: Use OAuth token
+                from google.auth.transport.requests import Request
+                
+                # Refresh token if needed
+                if not self.credentials.valid:
+                    self.credentials.refresh(Request())
+                
+                access_token = self.credentials.token
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                }
+                logger.info(f"Calling Vertex AI Gemini 2.5 Flash + Imagen: {endpoint}")
+                
+                async with httpx.AsyncClient(timeout=60.0, headers=headers) as client:
+                    response = await client.post(endpoint, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+            else:
+                # Generative Language API: Use API key
+                endpoint_with_key = f"{endpoint}?key={self.api_key}"
+                logger.info(f"Calling Generative Language API: {endpoint}")
+                
+                headers = {"Content-Type": "application/json"}
+                async with httpx.AsyncClient(timeout=60.0, headers=headers) as client:
+                    response = await client.post(endpoint_with_key, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+            
+            logger.info(f"Gemini API response received")
+            
+            # Extract the generated content from Gemini response
+            # Response format: {"candidates": [{"content": {"parts": [{"text": "..." or "inlineData": {"data": "base64..."}}]}}]}
+            # For Gemini 2.5 Flash Image, the response includes generated images as inlineData
+            generated_images = []
+            if "candidates" in result:
+                for candidate in result["candidates"]:
+                    if "content" in candidate and "parts" in candidate["content"]:
+                        for part in candidate["content"]["parts"]:
+                            if "inlineData" in part and "data" in part["inlineData"]:
+                                # Store the base64 image data
+                                generated_images.append(part["inlineData"]["data"])
+                                logger.info(f"Found generated image in response (size: {len(part['inlineData']['data'])} chars)")
+            
+            return {
+                "job_id": f"gemini_{uuid.uuid4().hex[:12]}",
+                "status": "completed",
+                "generated_images": generated_images,  # List of base64 encoded images
+                "result": result
+            }
         except httpx.HTTPError as e:
             logger.error(f"Failed to create Nano Banana job: {e}")
+            if hasattr(e, 'response'):
+                logger.error(f"Response status: {e.response.status_code}")
+                logger.error(f"Response content: {e.response.text}")
             raise
     
     async def get_job_status(self, job_id: str) -> Dict:
@@ -174,21 +305,14 @@ class NanoBananaClient:
             await asyncio.sleep(generation_time)
             return await self.get_job_status(job_id)
         
-        # Live mode - actual polling
-        elapsed = 0
-        while elapsed < max_wait_seconds:
-            status = await self.get_job_status(job_id)
-            
-            job_status = status.get("status")
-            if job_status in ["completed", "succeeded", "success"]:
-                return status
-            elif job_status in ["failed", "error"]:
-                raise Exception(f"Job failed: {status.get('error', 'Unknown error')}")
-            
-            await asyncio.sleep(poll_interval)
-            elapsed += poll_interval
-        
-        raise TimeoutError(f"Job {job_id} did not complete within {max_wait_seconds} seconds")
+        # For Gemini, the job completes immediately (synchronous API)
+        # The generated images are already in the response from create_job
+        # Just return success status - the actual images are handled by create_job
+        logger.info(f"Gemini job {job_id} completed (synchronous generation)")
+        return {
+            "job_id": job_id,
+            "status": "completed"
+        }
     
     def _generate_mock_image(self, prompt: str, mode: str, job_id: str) -> bytes:
         """Generate a mock result image with prompt text and info."""
