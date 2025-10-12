@@ -5,6 +5,7 @@ import { LogOut, Camera, FolderOpen, CreditCard, User, Home, Menu, X } from 'luc
 import { version } from '../version'
 import logo from '../assets/logo.png'
 import Footer from './Footer'
+import ThemeToggle from './ThemeToggle'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
@@ -82,6 +83,9 @@ export default function Layout() {
           </nav>
 
           <div className="px-4 pt-4 pb-10 border-t border-gray-200 dark:border-gray-700">
+            <div className="mb-3">
+              <ThemeToggle />
+            </div>
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.full_name || user?.email}</p>
@@ -140,6 +144,9 @@ export default function Layout() {
               </nav>
 
               <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-10 border-t border-gray-200 dark:border-gray-700">
+                <div className="mb-3">
+                  <ThemeToggle />
+                </div>
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.full_name || user?.email}</p>

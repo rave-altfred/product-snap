@@ -4,22 +4,31 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
+import { useThemeStore, applyTheme } from './store/themeStore'
 
 console.log('[main.tsx] Starting app initialization')
 
-// Dark mode detection
-if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  document.documentElement.classList.add('dark')
-} else {
-  document.documentElement.classList.remove('dark')
+// Initialize theme from store
+const storedTheme = localStorage.getItem('theme-storage')
+let theme: 'auto' | 'light' | 'dark' = 'auto'
+
+if (storedTheme) {
+  try {
+    const parsed = JSON.parse(storedTheme)
+    theme = parsed.state?.theme || 'auto'
+  } catch (e) {
+    console.error('[main.tsx] Failed to parse theme from storage', e)
+  }
 }
 
-// Listen for system theme changes
-window.matchMedia('(prefers-color-scheme: dark)').addListener((e) => {
-  if (e.matches) {
-    document.documentElement.classList.add('dark')
-  } else {
-    document.documentElement.classList.remove('dark')
+// Apply initial theme
+applyTheme(theme)
+
+// Listen for system theme changes (only when in auto mode)
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  const currentTheme = useThemeStore.getState().theme
+  if (currentTheme === 'auto') {
+    applyTheme('auto')
   }
 })
 
