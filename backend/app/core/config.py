@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # JWT
-    JWT_SECRET: str
+    JWT_SECRET: str = ""  # Loaded from secret file if JWT_SECRET_FILE is set
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     
     # PayPal
     PAYPAL_CLIENT_ID: str
-    PAYPAL_CLIENT_SECRET: str
+    PAYPAL_CLIENT_SECRET: str = ""  # Loaded from secret file if PAYPAL_CLIENT_SECRET_FILE is set
     PAYPAL_MODE: str = "sandbox"  # or 'live'
     PAYPAL_WEBHOOK_ID: Optional[str] = None
     
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     PAYPAL_PLAN_ID_PRO_YEARLY: Optional[str] = None
     
     # Nano Banana (Gemini 2.5 Flash + Imagen 3)
-    NANO_BANANA_API_KEY: str  # For Generative Language API or OAuth token for Vertex AI
+    NANO_BANANA_API_KEY: str = ""  # Loaded from secret file if NANO_BANANA_API_KEY_FILE is set
     NANO_BANANA_API_URL: str = "https://generativelanguage.googleapis.com"
     GOOGLE_CLOUD_PROJECT_ID: str = "gen-lang-client-0509931710"
     IMAGE_GENERATION_MODE: str = "live"  # 'live' or 'mock'
@@ -65,13 +65,13 @@ class Settings(BaseSettings):
     S3_REGION: str = "us-east-1"
     S3_BUCKET: str
     S3_ACCESS_KEY: str
-    S3_SECRET_KEY: str
+    S3_SECRET_KEY: str = ""  # Loaded from secret file if S3_SECRET_KEY_FILE is set
     
     # SMTP
     SMTP_HOST: str
     SMTP_PORT: int = 587
     SMTP_USER: str
-    SMTP_PASSWORD: str
+    SMTP_PASSWORD: str = ""  # Loaded from secret file if SMTP_PASSWORD_FILE is set
     SMTP_FROM: str = "noreply@productsnap.com"
     SMTP_TLS: bool = True
     

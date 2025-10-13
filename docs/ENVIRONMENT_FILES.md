@@ -107,13 +107,14 @@ This document explains all environment files in the ProductSnap project, their p
 ### Droplet Directory
 
 #### `droplet/.env.production` ✅ ACTIVE
-- **Purpose**: Production deployment secrets
-- **Used by**: `droplet/docker-compose.prod.yml`, `droplet/deploy.sh`
+- **Purpose**: Source file for Docker Swarm secrets in production
+- **Used by**: `droplet/deploy.sh` (creates Docker secrets from this file)
 - **Contains**: Real production credentials (database, S3, PayPal, etc.)
 - **Notes**: 
   - Gitignored (`.gitignore` line 5)
   - Validated by `deploy.sh` before deployment
-  - Copied to droplet at `/opt/product-snap/.env.production`
+  - Values are converted to Docker Swarm secrets (not copied as plain files)
+  - Secrets are mounted as files in containers at `/run/secrets/`
 
 #### `droplet/.env.production.template` ✅ KEEP
 - **Purpose**: Template for creating production environment
@@ -150,13 +151,16 @@ This document explains all environment files in the ProductSnap project, their p
 4. Docker Compose injects variables from .env into containers
 ```
 
-### Production Deployment Flow
+### Production Deployment Flow (Docker Secrets)
 ```
 1. Copy droplet/.env.production.template → droplet/.env.production
 2. Fill in production secrets
 3. Run: droplet/deploy.sh
-4. Script validates .env.production and copies to droplet
-5. docker-compose.prod.yml loads secrets on the droplet
+4. Script validates .env.production
+5. Script initializes Docker Swarm (if needed)
+6. Script creates Docker secrets from .env.production values
+7. Stack deployed using docker-compose.prod.secrets.yml
+8. Secrets mounted as files in containers at /run/secrets/
 ```
 
 ### Backend Scripts / Standalone Development
@@ -180,15 +184,20 @@ This document explains all environment files in the ProductSnap project, their p
     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   ```
 
-### Docker Compose (Production)
-- **File**: `droplet/docker-compose.prod.yml`
-- **Method**: Uses `env_file: .env.production` directive
+### Docker Compose (Production) - Docker Secrets
+- **File**: `droplet/docker-compose.prod.secrets.yml`
+- **Method**: Uses Docker Swarm secrets (mounted as files)
 - **Example**:
   ```yaml
   backend:
-    env_file:
-      - .env.production
+    secrets:
+      - jwt_secret
+      - postgres_password
   ```
+- **Notes**:
+  - Backend config supports both direct env vars and `*_FILE` variants
+  - Example: `JWT_SECRET_FILE=/run/secrets/jwt_secret`
+  - Secrets automatically created/updated by `deploy.sh`
 
 ### Backend Application
 - **File**: `backend/app/core/config.py`
@@ -240,16 +249,51 @@ droplet/droplet-info.env
 frontend/.env.test
 ```
 
+## Docker Secrets in Production
+
+Production deployments use Docker Swarm secrets for enhanced security:
+
+### How It Works
+1. **Deployment script** (`droplet/deploy.sh`) reads `droplet/.env.production`
+2. **Creates secrets**: Each sensitive value becomes a Docker secret
+3. **Mounts secrets**: Containers access secrets as files in `/run/secrets/`
+4. **Backend reads**: Config supports `*_FILE` env vars (e.g., `JWT_SECRET_FILE`)
+
+### Secrets Management
+```bash
+# Use the helper script to manage secrets
+./droplet/manage-secrets.sh list          # List all secrets
+./droplet/manage-secrets.sh inspect <name> # View secret metadata
+./droplet/manage-secrets.sh update <name>  # Update a secret value
+./droplet/manage-secrets.sh remove <name>  # Remove a secret
+```
+
+### Supported Secrets
+All sensitive values from `.env.production` are converted to secrets:
+- Database credentials (postgres_password, postgres_user, postgres_db)
+- JWT signing key (jwt_secret)
+- S3/Spaces credentials (s3_access_key, s3_secret_key)
+- PayPal API credentials (paypal_client_id, paypal_client_secret)
+- Email credentials (smtp_username, smtp_password)
+- API keys (nano_banana_api_key)
+
+### Benefits
+- Secrets encrypted at rest and in transit
+- No plain-text secrets in container images
+- Secrets only accessible to authorized services
+- Centralized secret rotation via `manage-secrets.sh`
+
 ## Environment Variable Best Practices
 
 1. **Never commit secrets**: Use `.gitignore` for files with real credentials
 2. **Use templates**: Provide `.example` files with placeholder values
 3. **Validate before deployment**: `deploy.sh` checks required variables exist
-4. **Separate concerns**: 
-   - Root `.env` for Docker Compose
-   - `droplet/.env.production` for production deployment
+4. **Use Docker Secrets in production**: Enabled by default for production deployments
+5. **Separate concerns**: 
+   - Root `.env` for Docker Compose (local dev)
+   - `droplet/.env.production` for production secrets (converted to Docker secrets)
    - `backend/.env.example` for standalone development
-5. **Document changes**: Update this file when adding new env files
+6. **Document changes**: Update this file when adding new env files
 
 ## Troubleshooting
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Deployment Script
-# Deploys multi-service application to DigitalOcean droplet using Docker Compose
+# Deployment Script with Docker Secrets Support
+# Deploys multi-service application to DigitalOcean droplet using Docker Swarm
 
 # Colors for output
 RED='\033[0;31m'
@@ -30,13 +30,16 @@ PROJECT_NAME="${PROJECT_NAME:-product-snap}"
 TAG="${IMAGE_TAG:-latest}"
 SERVICES="${SERVICES:-backend frontend worker}"
 APP_DIR="/opt/$PROJECT_NAME"
+STACK_NAME="${PROJECT_NAME}"
+USE_SECRETS="${USE_SECRETS:-true}"
 
 echo "=========================================="
-echo "ProductSnap Deployment"
+echo "ProductSnap Deployment (Docker Secrets)"
 echo "=========================================="
 echo "Droplet: $DROPLET_NAME ($DROPLET_IP)"
 echo "Services: $SERVICES"
 echo "Tag: $TAG"
+echo "Secrets: $USE_SECRETS"
 echo ""
 
 # Validate registry namespace
@@ -123,21 +126,25 @@ doctl registry login
 
 echo "Preparing deployment files..."
 
-# Copy docker-compose template
-cp "$SCRIPT_DIR/docker-compose.prod.yml" /tmp/docker-compose.yml
+# Create non-secret env file (filter out secrets)
+echo "Creating non-secret configuration file..."
+grep -v -E "^(JWT_SECRET|PAYPAL_CLIENT_SECRET|NANO_BANANA_API_KEY|S3_SECRET_KEY|SMTP_PASSWORD|GOOGLE_CLIENT_SECRET)=" "$SCRIPT_DIR/.env.production" > /tmp/.env.nonsecrets
 
-# Copy production env file
-cp "$SCRIPT_DIR/.env.production" /tmp/.env.production
+# Prepare docker-compose file
+if [ "$USE_SECRETS" = "true" ]; then
+    cp "$SCRIPT_DIR/docker-compose.prod.secrets.yml" /tmp/docker-compose.yml
+else
+    cp "$SCRIPT_DIR/docker-compose.prod.yml" /tmp/docker-compose.yml
+fi
 
 echo "Uploading files to droplet..."
 ssh root@$DROPLET_IP "mkdir -p $APP_DIR/nginx/conf.d $APP_DIR/nginx/ssl"
 
-# Upload docker-compose and env
+# Upload docker-compose
 scp -o StrictHostKeyChecking=no /tmp/docker-compose.yml root@$DROPLET_IP:$APP_DIR/docker-compose.yml
-scp -o StrictHostKeyChecking=no /tmp/.env.production root@$DROPLET_IP:$APP_DIR/.env.production
 
-# Set secure permissions on secrets file (readable only by root)
-ssh root@$DROPLET_IP "chmod 600 $APP_DIR/.env.production"
+# Upload non-secret env file
+scp -o StrictHostKeyChecking=no /tmp/.env.nonsecrets root@$DROPLET_IP:$APP_DIR/.env.production
 
 # Upload system nginx config
 if [ -f "$SCRIPT_DIR/../nginx/productsnap-system.conf" ]; then
@@ -155,7 +162,7 @@ ssh root@$DROPLET_IP "mkdir -p /root/.docker && echo '$REGISTRY_TOKEN' > /root/.
 
 echo ""
 echo "=========================================="
-echo "Deploying to droplet..."
+echo "Deploying to droplet with Docker Secrets"
 echo "=========================================="
 
 # Deploy on droplet
@@ -163,6 +170,129 @@ ssh root@$DROPLET_IP bash << EOF
 set -e
 cd $APP_DIR
 
+# Initialize Docker Swarm if not already initialized
+if ! docker info | grep -q "Swarm: active"; then
+    echo "Initializing Docker Swarm..."
+    # Use the public IP address for advertising
+    docker swarm init --advertise-addr $DROPLET_IP || true
+    echo "✓ Docker Swarm initialized"
+else
+    echo "✓ Docker Swarm already active"
+fi
+
+# Check if stack exists and remove it to allow secret updates
+if docker stack ls | grep -q "$STACK_NAME"; then
+    echo ""
+    echo "Removing existing stack to update secrets..."
+    docker stack rm "$STACK_NAME"
+    echo "Waiting for stack to be removed..."
+    sleep 10
+    echo "✓ Stack removed"
+fi
+
+echo ""
+echo "Creating/updating Docker secrets..."
+
+# Function to create or update secret
+update_secret() {
+    local secret_name="\$1"
+    local secret_value="\$2"
+    
+    if [ -z "\$secret_value" ]; then
+        echo "  ⚠ Skipping \$secret_name (empty value)"
+        return 0
+    fi
+    
+    # Check if secret exists
+    if docker secret inspect "\$secret_name" &> /dev/null; then
+        echo -n "  Updating \$secret_name... "
+        # Remove old secret
+        docker secret rm "\$secret_name" &> /dev/null || true
+        sleep 1
+    else
+        echo -n "  Creating \$secret_name... "
+    fi
+    
+    # Create secret
+    if echo "\$secret_value" | docker secret create "\$secret_name" - &> /dev/null; then
+        echo "✓"
+    else
+        echo "✗ FAILED"
+        return 1
+    fi
+}
+
+# Load secrets from .env.production file on droplet
+export \$(cat .env.production | grep -v '^#' | xargs)
+
+# Now we need to load the actual secret values
+# Upload a temporary secrets file
+EOF
+
+# Create temporary secrets file with only secret values
+echo "Extracting secrets..."
+SECRET_VARS=("JWT_SECRET" "PAYPAL_CLIENT_SECRET" "NANO_BANANA_API_KEY" "S3_SECRET_KEY" "SMTP_PASSWORD" "GOOGLE_CLIENT_SECRET")
+> /tmp/.secrets.env
+for var in "${SECRET_VARS[@]}"; do
+    value=$(grep "^${var}=" "$SCRIPT_DIR/.env.production" | cut -d'=' -f2-)
+    if [ -n "$value" ]; then
+        echo "${var}=${value}" >> /tmp/.secrets.env
+    fi
+done
+
+# Upload secrets file
+scp -o StrictHostKeyChecking=no /tmp/.secrets.env root@$DROPLET_IP:$APP_DIR/.secrets.env
+ssh root@$DROPLET_IP "chmod 600 $APP_DIR/.secrets.env"
+
+# Continue deployment on droplet
+ssh root@$DROPLET_IP bash << EOF
+set -e
+cd $APP_DIR
+
+# Function to create or update secret
+update_secret() {
+    local secret_name="\$1"
+    local secret_value="\$2"
+    
+    if [ -z "\$secret_value" ]; then
+        echo "  ⚠ Skipping \$secret_name (empty value)"
+        return 0
+    fi
+    
+    # Check if secret exists
+    if docker secret inspect "\$secret_name" &> /dev/null; then
+        echo -n "  Updating \$secret_name... "
+        # Remove old secret
+        docker secret rm "\$secret_name" &> /dev/null || true
+        sleep 1
+    else
+        echo -n "  Creating \$secret_name... "
+    fi
+    
+    # Create secret
+    if echo "\$secret_value" | docker secret create "\$secret_name" - &> /dev/null; then
+        echo "✓"
+    else
+        echo "✗ FAILED"
+        return 1
+    fi
+}
+
+# Load secrets
+export \$(cat .secrets.env | grep -v '^#' | xargs)
+
+# Create/update secrets
+update_secret "${PROJECT_NAME}_jwt_secret" "\$JWT_SECRET"
+update_secret "${PROJECT_NAME}_paypal_client_secret" "\$PAYPAL_CLIENT_SECRET"
+update_secret "${PROJECT_NAME}_nano_banana_api_key" "\$NANO_BANANA_API_KEY"
+update_secret "${PROJECT_NAME}_s3_secret_key" "\$S3_SECRET_KEY"
+update_secret "${PROJECT_NAME}_smtp_password" "\$SMTP_PASSWORD"
+update_secret "${PROJECT_NAME}_google_client_secret" "\$GOOGLE_CLIENT_SECRET"
+
+# Remove secrets file immediately
+rm -f .secrets.env
+
+echo ""
 echo "Pulling latest images..."
 export \$(cat .env.production | grep -v '^#' | xargs)
 
@@ -175,60 +305,43 @@ for service in $SERVICES; do
 done
 
 echo ""
-echo "Stopping existing containers..."
-docker-compose down || true
+echo "Deploying stack..."
+# Deploy or update stack
+docker stack deploy -c docker-compose.yml --with-registry-auth "$STACK_NAME"
 
 echo ""
-echo "Starting services..."
-docker-compose up -d
-
-echo ""
-echo "Waiting for services to be healthy..."
-sleep 10
+echo "Waiting for services to start..."
+sleep 15
 
 echo ""
 echo "Service status:"
-docker-compose ps
+docker stack services "$STACK_NAME"
 
 echo ""
 echo "Checking service health..."
-docker-compose ps --format json | jq -r '.[] | "\(.Service): \(.State)"' 2>/dev/null || docker-compose ps
+docker service ls --filter "name=${STACK_NAME}_"
 
 EOF
 
+# Clean up local temp files
+rm -f /tmp/.secrets.env /tmp/.env.nonsecrets /tmp/docker-compose.yml
+
 echo ""
 echo "=========================================="
-echo -e "${GREEN}✓ Deployment Complete!${NC}"
+echo "Deployment Complete"
 echo "=========================================="
-
-# Get deployment status
 echo ""
-echo "Current status:"
-ssh root@$DROPLET_IP "cd $APP_DIR && docker-compose ps"
-
-echo ""
-echo "Application URLs:"
-if [ -n "$APP_DOMAIN" ]; then
-    echo -e "  Frontend: ${GREEN}https://$APP_DOMAIN${NC}"
-    echo -e "  Backend:  ${GREEN}https://$APP_DOMAIN/api${NC}"
-    echo -e "  Health:   ${GREEN}https://$APP_DOMAIN/health${NC}"
-else
-    echo -e "  Frontend: ${GREEN}http://$DROPLET_IP${NC}"
-    echo -e "  Backend:  ${GREEN}http://$DROPLET_IP/api${NC}"
-    echo -e "  Health:   ${GREEN}http://$DROPLET_IP/health${NC}"
-fi
-
+echo "Your application is now running with Docker Secrets!"
 echo ""
 echo "Useful commands:"
-echo "  View logs:    ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose logs -f'"
-echo "  View service: ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose logs -f backend'"
-echo "  Restart all:  ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose restart'"
-echo "  Stop all:     ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose down'"
-echo "  Status:       ssh root@$DROPLET_IP 'cd $APP_DIR && docker-compose ps'"
+echo "  View services:  ssh root@$DROPLET_IP 'docker stack services $STACK_NAME'"
+echo "  View logs:      ssh root@$DROPLET_IP 'docker service logs ${STACK_NAME}_backend'"
+echo "  Scale service:  ssh root@$DROPLET_IP 'docker service scale ${STACK_NAME}_backend=2'"
+echo "  Update stack:   Run this script again"
+echo "  Remove stack:   ssh root@$DROPLET_IP 'docker stack rm $STACK_NAME'"
 echo ""
-echo "Deployment options:"
-echo "  Deploy specific: SERVICES='backend' ./droplet/deploy.sh"
-echo "  Different tag:   TAG=v1.0.0 ./droplet/deploy.sh"
-
-# Cleanup temp files
-rm -f /tmp/docker-compose.yml /tmp/.env.production
+echo "To manage secrets:"
+echo "  ssh root@$DROPLET_IP"
+echo "  docker secret ls"
+echo "  docker secret inspect productsnap_jwt_secret"
+echo ""
