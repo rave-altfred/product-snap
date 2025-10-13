@@ -1,6 +1,19 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
+import os
+from pathlib import Path
+
+
+def read_secret_file(file_path: str) -> Optional[str]:
+    """Read a secret from a file (Docker Secrets convention)."""
+    try:
+        path = Path(file_path)
+        if path.exists() and path.is_file():
+            return path.read_text().strip()
+    except Exception as e:
+        print(f"Warning: Failed to read secret file {file_path}: {e}")
+    return None
 
 
 class Settings(BaseSettings):
@@ -83,6 +96,44 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Override secrets from files if *_FILE env vars are set (Docker Secrets)
+        self._load_secrets_from_files()
+
+
+    def _load_secrets_from_files(self):
+        """Load secrets from files if *_FILE environment variables are set.
+        
+        This follows Docker Secrets convention where sensitive values can be
+        provided via files (typically mounted at /run/secrets/).
+        
+        For each secret field, if <FIELD_NAME>_FILE env var exists,
+        read the secret from that file path.
+        """
+        secret_fields = [
+            'DATABASE_URL',
+            'JWT_SECRET',
+            'GOOGLE_CLIENT_SECRET',
+            'PAYPAL_CLIENT_SECRET',
+            'NANO_BANANA_API_KEY',
+            'S3_ACCESS_KEY',
+            'S3_SECRET_KEY',
+            'SMTP_PASSWORD',
+        ]
+        
+        for field in secret_fields:
+            file_env_var = f"{field}_FILE"
+            file_path = os.getenv(file_env_var)
+            
+            if file_path:
+                secret_value = read_secret_file(file_path)
+                if secret_value:
+                    setattr(self, field, secret_value)
+                    print(f"✓ Loaded {field} from secret file")
+                else:
+                    print(f"⚠ Warning: {file_env_var} is set but file is empty or unreadable")
 
 
 @lru_cache()
