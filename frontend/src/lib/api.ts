@@ -97,6 +97,9 @@ export const jobsApi = {
   get: (jobId: string) =>
     api.get(`/api/jobs/${jobId}`),
   
+  update: (jobId: string, data: { input_filename?: string }) =>
+    api.patch(`/api/jobs/${jobId}`, data),
+  
   delete: (jobId: string) =>
     api.delete(`/api/jobs/${jobId}`),
 }

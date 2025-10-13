@@ -33,9 +33,21 @@ class NanoBananaClient:
             "photorealistic professional product try-on, model wearing or using the product, AI should infer typical presentation for the product category, commercial fashion style, accurate lighting, natural confident pose, minimal studio background, high detail, soft shadows, ecommerce photography look"
         ),
         JobMode.LIFESTYLE_SCENE: (
-            "Place the product in a natural setting that fits the category. "
-            "Balanced lighting, photorealistic materials, consistent shadows. "
-            "Avoid brand logos and text. Create an authentic lifestyle environment."
+            "Create a high-quality, photorealistic lifestyle scene image showing the product naturally placed "
+            "in a real-world environment that fits its category. "
+            "The product type is not specified — first analyze and infer what kind of product it is "
+            "(for example: sunglasses, jewelry, hat, shoes, watch, handbag, etc.) and research how such products "
+            "are usually presented in professional catalog or ecommerce lifestyle photography. "
+            "Do not modify, replace, fill, or remove any part of the product. Preserve its original shape, proportions, "
+            "surface texture, material, color, and any printed or engraved logos or markings exactly as shown. "
+            "Do not add objects inside, on top of, or attached to the product. "
+            "The scene should appear natural, stylish, and realistic, following lighting and composition principles "
+            "seen in professional commercial photography for that product type. "
+            "Use realistic materials, reflections, and balanced composition consistent with professional lifestyle imagery. "
+            "Keep the focus on the product itself — it should be clearly visible, well-lit, and harmoniously integrated with the environment. "
+            "Produce a photorealistic, high-detail, commercial-quality image suitable for ecommerce or social media promotion. "
+            "photorealistic product lifestyle photo, natural setting matching product type, realistic materials, coherent shadows, authentic lighting, "
+            "unaltered product geometry, preserve logos and textures, product as main subject, commercial photography style"
         )
     }
     
@@ -270,13 +282,22 @@ class NanoBananaClient:
     
     async def get_job_status(self, job_id: str) -> Dict:
         """Get the status of a generation job."""
-        # Mock mode - simulate completed job
+        # Mock mode - simulate completed job with generated image
         if self.mode == "mock":
             logger.info(f"[MOCK] Checking status for job {job_id}")
+            # Generate a mock image and return as base64
+            mock_image_bytes = self._generate_mock_image(
+                prompt="Mock generation",
+                mode="mock",
+                job_id=job_id
+            )
+            import base64
+            mock_image_base64 = base64.b64encode(mock_image_bytes).decode('utf-8')
+            
             return {
                 "job_id": job_id,
                 "status": "completed",
-                "output_url": f"https://mock-storage.example.com/results/{job_id}.png",
+                "generated_images": [mock_image_base64],
                 "completed_at": datetime.utcnow().isoformat()
             }
         
@@ -298,9 +319,9 @@ class NanoBananaClient:
         poll_interval: int = 5
     ) -> Dict:
         """Poll a job until it completes or times out."""
-        # Mock mode - simulate realistic generation time (5-15 seconds)
+        # Mock mode - simulate realistic generation time (20-30 seconds for testing auto-refresh)
         if self.mode == "mock":
-            generation_time = random.uniform(5, 15)
+            generation_time = random.uniform(20, 30)
             logger.info(f"[MOCK] Simulating generation for {generation_time:.1f} seconds")
             await asyncio.sleep(generation_time)
             return await self.get_job_status(job_id)

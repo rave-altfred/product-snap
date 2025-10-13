@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, CheckCircle, XCircle, Play, Trash2, Grid, List } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, Play, Trash2, Grid, List, MoreVertical, Download, Edit2, Check, X } from 'lucide-react'
 import { jobsApi } from '../lib/api'
 import ImageModal from '../components/ImageModal'
 
@@ -23,10 +23,49 @@ export default function Library() {
   const [selectedImages, setSelectedImages] = useState<string[]>([])
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0)
   const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery')
+  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [editingJobId, setEditingJobId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState<string>('')
 
   useEffect(() => {
     loadJobs()
   }, [])
+
+  useEffect(() => {
+    const handleClickOutside = () => setDropdownOpen(null)
+    if (dropdownOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [dropdownOpen])
+
+  // Check if there are any active jobs
+  const hasActiveJobs = useMemo(() => {
+    const active = jobs.some(job => job.status === 'QUEUED' || job.status === 'PROCESSING')
+    console.log('[Library] Active jobs check:', active, 'Total jobs:', jobs.length)
+    return active
+  }, [jobs])
+
+  // Auto-refresh jobs while any are in progress
+  useEffect(() => {
+    console.log('[Library] Auto-refresh effect triggered, hasActiveJobs:', hasActiveJobs)
+    
+    if (!hasActiveJobs) {
+      console.log('[Library] No active jobs, skipping auto-refresh')
+      return
+    }
+    
+    console.log('[Library] Setting up auto-refresh interval (3s)')
+    const interval = setInterval(() => {
+      console.log('[Library] Auto-refresh: reloading jobs...')
+      loadJobs()
+    }, 3000) // Refresh every 3 seconds
+    
+    return () => {
+      console.log('[Library] Cleaning up auto-refresh interval')
+      clearInterval(interval)
+    }
+  }, [hasActiveJobs])
 
   const loadJobs = async () => {
     try {
@@ -45,9 +84,58 @@ export default function Library() {
     try {
       await jobsApi.delete(jobId)
       setJobs(jobs.filter(job => job.id !== jobId))
+      setDropdownOpen(null)
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to delete job')
     }
+  }
+
+  const downloadImage = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename || 'image.jpg'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      setDropdownOpen(null)
+    } catch (err) {
+      alert('Failed to download image')
+    }
+  }
+
+  const startRename = (jobId: string, currentName: string) => {
+    setEditingJobId(jobId)
+    setEditingName(currentName || 'Untitled')
+    setDropdownOpen(null)
+  }
+
+  const saveRename = async (jobId: string) => {
+    if (!editingName.trim()) {
+      alert('Name cannot be empty')
+      return
+    }
+    
+    try {
+      // Update the job with new filename
+      await jobsApi.update(jobId, { input_filename: editingName.trim() })
+      setJobs(jobs.map(job => 
+        job.id === jobId ? { ...job, input_filename: editingName.trim() } : job
+      ))
+      setEditingJobId(null)
+      setEditingName('')
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to rename job')
+    }
+  }
+
+  const cancelRename = () => {
+    setEditingJobId(null)
+    setEditingName('')
   }
 
   const getStatusIcon = (status: string) => {
@@ -111,7 +199,7 @@ export default function Library() {
   }
 
   return (
-    <div className="px-6 py-4 sm:px-8 sm:py-6 lg:px-12 lg:py-8 animate-fade-in">
+    <div className="px-6 py-4 sm:px-8 sm:py-6 lg:px-12 lg:py-8 animate-fade-in overflow-hidden">
       <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Library</h1>
         <div className="flex gap-2">
@@ -149,31 +237,33 @@ export default function Library() {
           </Link>
         </div>
       ) : viewMode === 'gallery' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
           {jobs.map((job) => (
-            <div key={job.id} className="card hover:shadow-lg transition-shadow">
-              <div className="relative">
+            <div key={job.id} className="card hover:shadow-lg transition-shadow p-4 sm:p-6">
+              <div className="relative mb-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 overflow-hidden p-2">
                 {job.thumbnail_url ? (
-                  <img
-                    src={job.thumbnail_url}
-                    alt={job.input_filename || 'Job result'}
-                    className="w-full h-48 object-cover rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity"
-                    style={{ imageRendering: 'auto' }}
-                    onClick={() => {
-                      console.log('Job data:', { 
-                        id: job.id, 
-                        has_result_urls: !!job.result_urls, 
-                        result_urls_length: job.result_urls?.length || 0,
-                        result_urls: job.result_urls,
-                        thumbnail_url: job.thumbnail_url
-                      })
-                      const urlsToOpen = job.result_urls && job.result_urls.length > 0 ? job.result_urls : [job.thumbnail_url!]
-                      console.log('Opening modal with URLs:', urlsToOpen)
-                      openImageModal(urlsToOpen, 0)
-                    }}
-                  />
+                  <div className="relative h-48">
+                    <img
+                      src={job.thumbnail_url}
+                      alt={job.input_filename || 'Job result'}
+                      className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity rounded-lg bg-white dark:bg-gray-900"
+                      loading="lazy"
+                      onClick={() => {
+                        console.log('Job data:', { 
+                          id: job.id, 
+                          has_result_urls: !!job.result_urls, 
+                          result_urls_length: job.result_urls?.length || 0,
+                          result_urls: job.result_urls,
+                          thumbnail_url: job.thumbnail_url
+                        })
+                        const urlsToOpen = job.result_urls && job.result_urls.length > 0 ? job.result_urls : [job.thumbnail_url!]
+                        console.log('Opening modal with URLs:', urlsToOpen)
+                        openImageModal(urlsToOpen, 0)
+                      }}
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                  <div className="w-full h-48 flex items-center justify-center">
                     <div className="text-center">
                       {getStatusIcon(job.status)}
                       <p className="text-sm text-gray-600 mt-2 capitalize">{job.status}</p>
@@ -192,21 +282,95 @@ export default function Library() {
                   </div>
                 )}
                 
-                <button
-                  onClick={() => deleteJob(job.id)}
-                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                  title="Delete job"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="absolute top-2 right-2 z-10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDropdownOpen(dropdownOpen === job.id ? null : job.id)
+                    }}
+                    className="p-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-md"
+                    title="Options"
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  
+                  {dropdownOpen === job.id && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startRename(job.id, job.input_filename || 'Untitled')
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <Edit2 size={16} />
+                        Rename
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          downloadImage(job.thumbnail_url!, job.input_filename || 'image.jpg')
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <Download size={16} />
+                        Download
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteJob(job.id)
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                      >
+                        <Trash2 size={16} />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               
-              <div className="p-4">
+              <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium truncate">
-                    {job.input_filename || 'Untitled'}
-                  </h3>
-                  {getStatusIcon(job.status)}
+                  {editingJobId === job.id ? (
+                    <div className="flex items-center gap-1 flex-1">
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveRename(job.id)
+                          if (e.key === 'Escape') cancelRename()
+                        }}
+                        className="flex-1 px-2 py-1 text-sm border border-primary-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button
+                        onClick={() => saveRename(job.id)}
+                        className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                        title="Save"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={cancelRename}
+                        className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        title="Cancel"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <h3 
+                      className="font-medium truncate cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      onClick={() => startRename(job.id, job.input_filename || 'Untitled')}
+                      title="Click to rename"
+                    >
+                      {job.input_filename || 'Untitled'}
+                    </h3>
+                  )}
                 </div>
                 
                 <p className="text-sm text-gray-600 mb-2">
@@ -238,63 +402,148 @@ export default function Library() {
           ))}
         </div>
       ) : (
-        <div className="space-y-3 w-full">
+        <div className="space-y-3 w-full max-w-full" style={{ boxSizing: 'border-box' }}>
           {jobs.map((job) => (
-            <div key={job.id} className="card p-3 sm:p-4 hover:shadow-lg transition-shadow w-full">
-              <div className="flex gap-2 sm:gap-3 w-full">
+            <div key={job.id} className="card p-3 sm:p-4 hover:shadow-lg transition-shadow hover:scale-100" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
+              <div className="flex gap-2 sm:gap-3" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
                 {/* Thumbnail */}
                 <div className="flex-shrink-0">
                   {job.thumbnail_url ? (
-                    <img
-                      src={job.thumbnail_url}
-                      alt={job.input_filename || 'Job result'}
-                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => {
-                        const urlsToOpen = job.result_urls && job.result_urls.length > 0 ? job.result_urls : [job.thumbnail_url!]
-                        openImageModal(urlsToOpen, 0)
-                      }}
-                    />
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-1 flex items-center justify-center">
+                      <img
+                        src={job.thumbnail_url}
+                        alt={job.input_filename || 'Job result'}
+                        className="w-full h-full object-contain rounded cursor-pointer hover:opacity-90 transition-opacity bg-white dark:bg-gray-900"
+                        onClick={() => {
+                          const urlsToOpen = job.result_urls && job.result_urls.length > 0 ? job.result_urls : [job.thumbnail_url!]
+                          openImageModal(urlsToOpen, 0)
+                        }}
+                      />
+                    </div>
                   ) : (
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded flex items-center justify-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 dark:bg-gray-800/50 rounded-lg flex items-center justify-center">
                       {getStatusIcon(job.status)}
                     </div>
                   )}
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0 overflow-hidden" style={{ maxWidth: 'calc(100vw - 120px)' }}>
-                  <div className="flex items-start gap-2 mb-1">
-                    <h3 className="font-medium text-sm truncate flex-1 min-w-0 max-w-full">{job.input_filename || 'Untitled'}</h3>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <div className="hidden sm:block">{getStatusIcon(job.status)}</div>
-                      <button
-                        onClick={() => deleteJob(job.id)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-                        title="Delete job"
+                <div className="flex-1 min-w-0 max-w-full overflow-hidden">
+                  <div className="flex items-start gap-2 mb-1 max-w-full">
+                    {editingJobId === job.id ? (
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveRename(job.id)
+                            if (e.key === 'Escape') cancelRename()
+                          }}
+                          className="flex-1 min-w-0 px-2 py-1 text-xs border border-primary-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={() => saveRename(job.id)}
+                          className="p-0.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded flex-shrink-0"
+                          title="Save"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={cancelRename}
+                          className="p-0.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded flex-shrink-0"
+                          title="Cancel"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <h3 
+                        className="font-medium text-sm truncate flex-1 cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                        onClick={() => startRename(job.id, job.input_filename || 'Untitled')}
+                        title="Click to rename"
                       >
-                        <Trash2 size={16} />
-                      </button>
+                        {job.input_filename || 'Untitled'}
+                      </h3>
+                    )}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDropdownOpen(dropdownOpen === job.id ? null : job.id)
+                          }}
+                          className="p-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                          title="Options"
+                        >
+                          <MoreVertical size={16} />
+                        </button>
+                        
+                        {dropdownOpen === job.id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-20">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                startRename(job.id, job.input_filename || 'Untitled')
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                            >
+                              <Edit2 size={16} />
+                              Rename
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                downloadImage(job.thumbnail_url!, job.input_filename || 'image.jpg')
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                            >
+                              <Download size={16} />
+                              Download
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteJob(job.id)
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                            >
+                              <Trash2 size={16} />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="text-xs text-gray-600 mb-1 truncate">
+                  <div className="text-xs text-gray-600 mb-1 truncate overflow-hidden">
                     {formatMode(job.mode)} • <span className="capitalize">{job.status}</span>
                   </div>
                   
-                  <p className="text-xs text-gray-500 mb-1 truncate">
+                  <p className="text-xs text-gray-500 mb-1 truncate overflow-hidden">
                     {formatDate(job.created_at)}
                   </p>
                   
                   {job.error_message && (
-                    <p className="text-xs text-red-600 mb-1 truncate" title={job.error_message}>
+                    <div className="text-xs text-red-600 mb-1" style={{ 
+                      width: '100%', 
+                      maxWidth: '100%',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block'
+                    }} title={job.error_message}>
                       Error: {job.error_message}
-                    </p>
+                    </div>
                   )}
                   
                   {job.result_urls && job.result_urls.length > 0 && (
                     <button
                       onClick={() => openImageModal(job.result_urls, 0)}
-                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium truncate text-left block"
                     >
                       View {job.result_urls.length} {job.result_urls.length === 1 ? 'result' : 'results'} →
                     </button>

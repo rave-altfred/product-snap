@@ -277,6 +277,35 @@ async def get_job(
     }
 
 
+@router.patch("/{job_id}")
+async def update_job(
+    job_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update job details (e.g., filename)."""
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == current_user.id).first()
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+    
+    # Update allowed fields
+    if "input_filename" in request:
+        job.input_filename = request["input_filename"]
+    
+    db.commit()
+    db.refresh(job)
+    
+    return {
+        "id": job.id,
+        "input_filename": job.input_filename,
+        "message": "Job updated successfully"
+    }
+
+
 @router.delete("/{job_id}")
 async def delete_job(
     job_id: str,
