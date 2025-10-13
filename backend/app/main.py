@@ -14,7 +14,7 @@ register_heif_opener()
 from app.core.config import settings
 from app.core.logging import setup_logging, set_request_id
 from app.core.redis_client import get_redis_client, close_redis_client
-from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks, preview
+from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks, preview, branding
 
 # Setup logging
 logger = setup_logging()
@@ -52,6 +52,18 @@ async def add_request_id(request: Request, call_next):
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
+    
+    # Log incoming request details
+    logger.info(
+        "Incoming request",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "full_url": str(request.url),
+            "headers": dict(request.headers),
+            "client": request.client.host if request.client else None
+        }
+    )
     
     response = await call_next(request)
     
@@ -103,6 +115,7 @@ async def shutdown_event():
 
 # Include routers
 app.include_router(health.router, tags=["Health"])
+app.include_router(branding.router, prefix="/api", tags=["Branding"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])

@@ -36,17 +36,12 @@ async def generate_preview(file: UploadFile = File(...)):
         if is_heif:
             logger.info("Opening HEIC file with pillow_heif.open_heif()...")
             try:
-                # Try using pillow_heif.open_heif() which is more forgiving
-                heif_file = pillow_heif.open_heif(file_content, convert_hdr_to_8bit=False, bgr_mode=False)
-                logger.info(f"HEIC file opened - Size: {heif_file.size}, Mode: {heif_file.mode}")
-                
-                # Convert to PIL Image
-                img = Image.frombytes(
-                    heif_file.mode,
-                    heif_file.size,
-                    heif_file.data,
-                    'raw'
-                )
+                # Use PIL with registered HEIF opener (more stable)
+                register_heif_opener()
+                image_stream.seek(0)
+                img = Image.open(image_stream)
+                img.load()  # Force load the image data
+                logger.info(f"HEIC file opened - Size: {img.size}, Mode: {img.mode}")
                 logger.info(f"HEIC converted to PIL Image successfully")
             except Exception as e:
                 logger.error(f"Failed to decode HEIC with open_heif: {e}")
@@ -68,18 +63,26 @@ async def generate_preview(file: UploadFile = File(...)):
         
         with img:
             # Convert to RGB if necessary (HEIC might be in different mode)
+            logger.info(f"Converting image mode from {img.mode} to RGB if needed...")
             if img.mode not in ('RGB', 'L'):
                 img = img.convert('RGB')
+                logger.info("Converted to RGB")
             
             # Resize for preview (max 800px on longest side)
             max_size = 800
+            logger.info(f"Resizing image {img.size} to max {max_size}px...")
             img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            logger.info(f"Resized to {img.size}")
             
             # Convert to JPEG
+            logger.info("Converting to JPEG...")
             output = io.BytesIO()
             img.save(output, format='JPEG', quality=85, optimize=True)
             output.seek(0)
+            jpeg_size = len(output.getvalue())
+            logger.info(f"JPEG created, size: {jpeg_size} bytes")
             
+            logger.info("Sending response...")
             return Response(
                 content=output.read(),
                 media_type="image/jpeg"

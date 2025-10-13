@@ -20,6 +20,11 @@ class EmailService:
         text_content: Optional[str] = None
     ):
         """Send an email via SMTP."""
+        # Skip email sending if SMTP is not configured
+        if not settings.SMTP_HOST or not settings.SMTP_USER:
+            logger.warning(f"SMTP not configured, skipping email to {to_email}")
+            return
+        
         message = MIMEMultipart("alternative")
         message["From"] = settings.SMTP_FROM
         message["To"] = to_email

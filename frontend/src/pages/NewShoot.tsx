@@ -48,6 +48,8 @@ export default function NewShoot() {
   const [modelGender, setModelGender] = useState<ModelGender>('female')
   const [sceneEnvironment, setSceneEnvironment] = useState<SceneEnvironment>('indoor')
   const [loading, setLoading] = useState(false)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const [previewProgress, setPreviewProgress] = useState('')
   const [error, setError] = useState('')
   const [showCamera, setShowCamera] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
@@ -100,18 +102,37 @@ export default function NewShoot() {
         if (isHeic) {
           // For HEIC files, send to server for conversion
           console.log('Uploading HEIC to server for preview conversion...')
+          setLoadingPreview(true)
+          setPreviewProgress('Uploading image...')
           const formData = new FormData()
           formData.append('file', file)
+          
+          // Simulate progress stages
+          setTimeout(() => {
+            if (loadingPreview) setPreviewProgress('Converting HEIC format...')
+          }, 1500)
           
           const response = await api.post('/api/preview/generate', formData, {
             responseType: 'blob',
             headers: {
               'Content-Type': 'multipart/form-data',
             },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                if (percentCompleted < 100) {
+                  setPreviewProgress(`Uploading image... ${percentCompleted}%`)
+                } else {
+                  setPreviewProgress('Converting HEIC format...')
+                }
+              }
+            },
           })
           
+          console.log('HEIC preview received, creating blob URL...')
           // Create object URL from the JPEG blob
           const blobUrl = URL.createObjectURL(response.data)
+          console.log('Blob URL created:', blobUrl)
           setPreviewUrl(blobUrl)
           console.log('HEIC preview generated successfully')
         } else {
@@ -132,6 +153,9 @@ export default function NewShoot() {
         console.log('Will show placeholder instead. Original file will still be uploaded correctly.')
         // Still allow upload even if preview fails
         setPreviewUrl(null)
+      } finally {
+        setLoadingPreview(false)
+        setPreviewProgress('')
       }
     }
     
@@ -343,7 +367,13 @@ export default function NewShoot() {
           ) : (
             <div>
               <div className="relative">
-                {previewUrl ? (
+                {loadingPreview ? (
+                  <div className="max-w-full h-96 mx-auto rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500 mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400 font-medium text-lg">{previewProgress || 'Processing...'}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Please wait, this may take a few seconds</p>
+                  </div>
+                ) : previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Preview"
@@ -358,14 +388,13 @@ export default function NewShoot() {
                     }}
                   />
                 ) : null}
-                <div 
-                  className="max-w-full h-96 mx-auto rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800 flex-col items-center justify-center"
-                  style={{ display: previewUrl ? 'none' : 'flex' }}
-                >
-                  <ImageIcon size={64} className="text-gray-400 dark:text-gray-600 mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400">Preview not available</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">File ready to upload</p>
-                </div>
+                {!loadingPreview && !previewUrl && (
+                  <div className="max-w-full h-96 mx-auto rounded-lg shadow-lg bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center">
+                    <ImageIcon size={64} className="text-gray-400 dark:text-gray-600 mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">Preview not available</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">File ready to upload</p>
+                  </div>
+                )}
               </div>
               <div className="mt-4 text-center space-y-3">
                 <p className="text-sm text-gray-600 dark:text-gray-400">

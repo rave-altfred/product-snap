@@ -19,9 +19,15 @@ fi
 source "$SCRIPT_DIR/droplet-info.env"
 
 # Configuration (can be overridden by environment variables)
-DOMAIN="${DOMAIN:-utils.studio}"
-SUBDOMAIN="${SUBDOMAIN:-lightclick}"
-FULL_DOMAIN="$SUBDOMAIN.$DOMAIN"
+DOMAIN="${DOMAIN:-lightclick.studio}"
+SUBDOMAIN="${SUBDOMAIN:-@}"
+
+# Handle root domain vs subdomain
+if [ "$SUBDOMAIN" = "@" ] || [ "$SUBDOMAIN" = "" ]; then
+    FULL_DOMAIN="$DOMAIN"
+else
+    FULL_DOMAIN="$SUBDOMAIN.$DOMAIN"
+fi
 EMAIL="${LETSENCRYPT_EMAIL:-}"
 DB_ID="${DB_ID:-}"
 
@@ -57,8 +63,17 @@ echo ""
 echo "=== DNS Setup ==="
 echo "Setting up DNS for $FULL_DOMAIN..."
 
+# Determine DNS record name for doctl
+if [ "$SUBDOMAIN" = "@" ]; then
+    DNS_RECORD_NAME="@"
+    SEARCH_PATTERN="^[0-9]+\s+A\s+@\s+"
+else
+    DNS_RECORD_NAME="$SUBDOMAIN"
+    SEARCH_PATTERN="^[0-9]+\s+A\s+$SUBDOMAIN\s+"
+fi
+
 # Check if DNS record already exists
-EXISTING_RECORD=$(doctl compute domain records list "$DOMAIN" --format ID,Type,Name,Data --no-header 2>/dev/null | grep -E "^[0-9]+\s+A\s+$SUBDOMAIN\s+" | awk '{print $1}')
+EXISTING_RECORD=$(doctl compute domain records list "$DOMAIN" --format ID,Type,Name,Data --no-header 2>/dev/null | grep -E "$SEARCH_PATTERN" | awk '{print $1}')
 
 if [ -n "$EXISTING_RECORD" ]; then
     echo "Updating existing DNS record..."
@@ -66,8 +81,24 @@ if [ -n "$EXISTING_RECORD" ]; then
     echo "✓ DNS record updated: $FULL_DOMAIN -> $DROPLET_IP"
 else
     echo "Creating DNS record..."
-    doctl compute domain records create "$DOMAIN" --record-type A --record-name "$SUBDOMAIN" --record-data "$DROPLET_IP" --record-ttl 3600
+    doctl compute domain records create "$DOMAIN" --record-type A --record-name "$DNS_RECORD_NAME" --record-data "$DROPLET_IP" --record-ttl 3600
     echo "✓ DNS record created: $FULL_DOMAIN -> $DROPLET_IP"
+fi
+
+# Also create www subdomain if we're setting up root domain
+if [ "$SUBDOMAIN" = "@" ]; then
+    echo "Setting up www subdomain..."
+    WWW_RECORD=$(doctl compute domain records list "$DOMAIN" --format ID,Type,Name,Data --no-header 2>/dev/null | grep -E "^[0-9]+\s+A\s+www\s+" | awk '{print $1}')
+    
+    if [ -n "$WWW_RECORD" ]; then
+        echo "Updating existing www DNS record..."
+        doctl compute domain records update "$DOMAIN" --record-id "$WWW_RECORD" --record-data "$DROPLET_IP"
+        echo "✓ www DNS record updated: www.$DOMAIN -> $DROPLET_IP"
+    else
+        echo "Creating www DNS record..."
+        doctl compute domain records create "$DOMAIN" --record-type A --record-name "www" --record-data "$DROPLET_IP" --record-ttl 3600
+        echo "✓ www DNS record created: www.$DOMAIN -> $DROPLET_IP"
+    fi
 fi
 
 echo ""
@@ -222,8 +253,14 @@ if [ -n "$FULL_DOMAIN" ] && [ -n "$EMAIL" ]; then
     echo "Domain: $FULL_DOMAIN"
     echo "Email: $EMAIL"
     
-    # Run certbot to get certificates
-    ssh root@$CONNECTION_HOST "certbot --nginx -d $FULL_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect"
+    # Run certbot to get certificates for both root and www
+    if [ "$SUBDOMAIN" = "@" ]; then
+        echo "Obtaining certificates for both $FULL_DOMAIN and www.$DOMAIN..."
+        ssh root@$CONNECTION_HOST "certbot --nginx -d $FULL_DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $EMAIL"
+    else
+        echo "Obtaining certificate for $FULL_DOMAIN..."
+        ssh root@$CONNECTION_HOST "certbot --nginx -d $FULL_DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect"
+    fi
     
     if [ $? -eq 0 ]; then
         echo "✓ SSL certificates obtained"

@@ -116,7 +116,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="max-w-md w-full card">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">Login to Light Click</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">Login to LightClick</h2>
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

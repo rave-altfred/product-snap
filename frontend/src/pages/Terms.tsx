@@ -10,8 +10,8 @@ export default function Terms() {
       <header className="bg-white dark:bg-gray-50 shadow-lg sticky top-0 z-50 border-b border-gray-200 dark:border-gray-300">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <img src={logo} alt="Light Click" className="h-12 w-12" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Light Click</h1>
+            <img src={logo} alt="LightClick" className="h-12 w-12" />
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">LightClick</h1>
           </Link>
           <Link to="/" className="btn bg-gray-100 hover:bg-gray-200 dark:bg-gray-200 dark:hover:bg-gray-300 text-gray-800 dark:text-gray-900 text-sm">
             <ArrowLeft className="inline mr-2" size={16} />

@@ -19,8 +19,14 @@ class NanoBananaClient:
     
     PROMPT_TEMPLATES = {
         JobMode.STUDIO_WHITE: (
-            "Precisely isolate the product. Crisp edges. Shadow: subtle studio product shadow. "
-            "Pure white (#FFFFFF) background. No background props. No text. Professional product photography."
+            "Precisely isolate and center the product on a pure white (#FFFFFF) background. "
+            "Do not alter, replace, remove, or fill any part of the product — preserve its exact shape, proportions, materials, surface texture, and color exactly as shown. "
+            "Do not add or remove logos, engravings, or labels. "
+            "No props, no reflections, no gradients, no text, no watermarks, and no borders. "
+            "Lighting should be neutral, even, and professional — soft but bright, ensuring the product appears crisp and well-defined. "
+            "Edges must be perfectly clean and sharp against the background. "
+            "Composition must follow ecommerce standards: product fully visible, centered, isolated, and proportionally scaled. "
+            "photorealistic studio product photo, isolated subject, pure white background (#FFFFFF), clean edges, unaltered geometry and texture, professional ecommerce look."
         ),
         JobMode.MODEL_TRYON: (
             "Create a realistic product try-on photo showing a professional model wearing or using the product."
@@ -100,8 +106,8 @@ class NanoBananaClient:
             if shadow_option == 'no_shadow':
                 modifications.append("No shadow. Completely flat, pure white isolation.")
             elif shadow_option == 'drop_shadow':
-                modifications.append("Subtle drop shadow for depth.")
-        
+                modifications.append("Subtle, soft drop shadow directly beneath the product for a natural grounded appearance. "
+                                    "The shadow should be faint, diffuse, and fade smoothly — consistent with professional studio lighting.")
         if mode == JobMode.MODEL_TRYON and model_gender:
             if model_gender == 'male':
                 modifications.append("Show on a male model with masculine features and styling.")
