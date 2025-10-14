@@ -70,9 +70,6 @@ export default function Landing() {
             Start Free
             <ArrowRight className="group-hover:translate-x-1 transition-transform" size={18} />
           </Link>
-          <Link to="#modes" className="w-full h-12 rounded-xl text-base font-semibold bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white transition-colors flex items-center justify-center border border-gray-300 dark:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
-            Learn More
-          </Link>
         </div>
         
         <div className="text-xs text-gray-500 dark:text-slate-400 mt-2">
