@@ -6,8 +6,7 @@
 # Usage: 
 #   ./deploy.sh create              - Create new app
 #   ./deploy.sh update              - Update app spec only
-#   ./deploy.sh deploy [component]  - Build, push, and deploy (default: all)
-#                                     component: frontend, backend, worker, all
+#   ./deploy.sh deploy              - Build, push, and deploy
 
 set -e  # Exit on error
 
@@ -215,45 +214,32 @@ view_logs() {
 
 # Function to build and deploy
 build_and_deploy() {
-    local component=${1:-all}
     local tag="v$(date +%Y%m%d-%H%M%S)"
     
-    print_info "Building and deploying: $component with tag: $tag"
+    print_info "Building and deploying with tag: $tag"
     echo ""
     
     # Build and push images
     print_info "Step 1: Building and pushing Docker images..."
     TAG="$tag" "$SCRIPT_DIR/build-and-push.sh"
     
-    # Update app.yaml with new tags
-    print_info "Step 2: Updating app.yaml with new tags..."
+    echo ""
+    print_info "Step 2: Updating app.yaml with new tag..."
     
-    if [[ "$component" == "all" ]] || [[ "$component" == "frontend" ]]; then
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
-        else
-            sed -i "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
-        fi
-        print_success "Updated frontend tag to $tag"
+    # Update all image tags in app.yaml
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        sed -i '' "/repository: lightclick-backend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        sed -i '' "/repository: lightclick-worker/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+    else
+        # Linux
+        sed -i "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        sed -i "/repository: lightclick-backend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        sed -i "/repository: lightclick-worker/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
     fi
     
-    if [[ "$component" == "all" ]] || [[ "$component" == "backend" ]]; then
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "/repository: lightclick-backend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
-        else
-            sed -i "/repository: lightclick-backend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
-        fi
-        print_success "Updated backend tag to $tag"
-    fi
-    
-    if [[ "$component" == "all" ]] || [[ "$component" == "worker" ]]; then
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "/repository: lightclick-worker/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
-        else
-            sed -i "/repository: lightclick-worker/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
-        fi
-        print_success "Updated worker tag to $tag"
-    fi
+    print_success "Updated image tags to $tag"
     
     echo ""
     print_info "Step 3: Deploying to App Platform..."
@@ -283,8 +269,7 @@ show_usage() {
     echo "Commands:"
     echo "  create              Create a new app from app.yaml"
     echo "  update [app-id]     Update app spec only (no build)"
-    echo "  deploy [component]  Build, push, and deploy with versioned tags"
-    echo "                      component: frontend, backend, worker, all (default)"
+    echo "  deploy              Build, push, and deploy all components"
     echo "  list                List all apps"
     echo "  info [app-id]       Get app information"
     echo "  logs [app-id] [type] View logs (BUILD|DEPLOY|RUN)"
@@ -292,8 +277,7 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  ./deploy.sh create"
-    echo "  ./deploy.sh deploy              # Build and deploy all components"
-    echo "  ./deploy.sh deploy frontend     # Only frontend"
+    echo "  ./deploy.sh deploy              # Build and deploy"
     echo "  ./deploy.sh update              # Update app spec only"
     echo "  ./deploy.sh logs abc123 BUILD"
     echo "  ./deploy.sh validate"
@@ -340,7 +324,7 @@ main() {
             check_auth
             check_app_spec
             echo ""
-            build_and_deploy "${2:-all}"
+            build_and_deploy
             ;;
         list)
             check_doctl

@@ -26,6 +26,9 @@ COPY frontend/postcss.config.js ./
 COPY frontend/tailwind.config.js ./
 COPY frontend/index.html ./
 
+# Copy public folder (static assets like favicon)
+COPY frontend/public/ ./public/
+
 # Copy source code (this will invalidate cache when source changes)
 COPY frontend/src/ ./src/
 
