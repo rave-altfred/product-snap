@@ -8,6 +8,7 @@ import banner3 from '../assets/banner3.png'
 import Footer from '../components/Footer'
 
 export default function Landing() {
+  // Updated: Removed Learn More button - 2025-10-14
   const [showStickyBottom, setShowStickyBottom] = useState(false)
   const [expandedMode, setExpandedMode] = useState<number | null>(null)
 
@@ -78,7 +79,7 @@ export default function Landing() {
         
         {/* Image Showcase - Compact Thumbnails */}
         <div className="mt-4 flex justify-center gap-2 md:gap-3">
-          <img src={banner1} alt="Product before AI enhancement" className="w-[30%] md:w-[22%] lg:w-[18%] rounded-lg aspect-[2/1] object-cover shadow-sm" width="195" height="98" loading="eager" fetchpriority="high" decoding="async" />
+          <img src={banner1} alt="Product before AI enhancement" className="w-[30%] md:w-[22%] lg:w-[18%] rounded-lg aspect-[2/1] object-cover shadow-sm" width="195" height="98" loading="eager" fetchPriority="high" decoding="async" />
           <img src={banner2} alt="AI processing product photo" className="w-[30%] md:w-[22%] lg:w-[18%] rounded-lg aspect-[2/1] object-cover shadow-sm" width="195" height="98" loading="lazy" decoding="async" />
           <img src={banner3} alt="Professional product shot result" className="w-[30%] md:w-[22%] lg:w-[18%] rounded-lg aspect-[2/1] object-cover shadow-sm" width="195" height="98" loading="lazy" decoding="async" />
         </div>

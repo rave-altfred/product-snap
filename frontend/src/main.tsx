@@ -25,7 +25,7 @@ if (storedTheme) {
 applyTheme(theme)
 
 // Listen for system theme changes (only when in auto mode)
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   const currentTheme = useThemeStore.getState().theme
   if (currentTheme === 'auto') {
     applyTheme('auto')

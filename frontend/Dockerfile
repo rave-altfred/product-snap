@@ -32,9 +32,9 @@ COPY frontend/src/ ./src/
 # Mark directory as safe for git operations
 RUN git config --global --add safe.directory /app
 
-# Run the build with optimizations for Docker/emulation
-# Skip type checking in Docker (we assume it passes locally)
-RUN npm run build:docker || npm run build
+# Run the build with type checking
+# This will fail if there are TypeScript errors
+RUN npm run build
 
 FROM nginx:alpine as production
 COPY --from=build /app/dist /usr/share/nginx/html

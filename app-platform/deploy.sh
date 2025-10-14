@@ -3,7 +3,11 @@
 # LightClick Studio
 # 
 # This script deploys the application to DigitalOcean App Platform
-# Usage: ./deploy.sh [create|update] [app-name]
+# Usage: 
+#   ./deploy.sh create              - Create new app
+#   ./deploy.sh update              - Update app spec only
+#   ./deploy.sh deploy [component]  - Build, push, and deploy (default: all)
+#                                     component: frontend, backend, worker, all
 
 set -e  # Exit on error
 
@@ -209,6 +213,67 @@ view_logs() {
     doctl apps logs "$app_id" --type="$log_type" --follow
 }
 
+# Function to build and deploy
+build_and_deploy() {
+    local component=${1:-all}
+    local tag="v$(date +%Y%m%d-%H%M%S)"
+    
+    print_info "Building and deploying: $component with tag: $tag"
+    echo ""
+    
+    # Build and push images
+    print_info "Step 1: Building and pushing Docker images..."
+    TAG="$tag" "$SCRIPT_DIR/build-and-push.sh"
+    
+    # Update app.yaml with new tags
+    print_info "Step 2: Updating app.yaml with new tags..."
+    
+    if [[ "$component" == "all" ]] || [[ "$component" == "frontend" ]]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        else
+            sed -i "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        fi
+        print_success "Updated frontend tag to $tag"
+    fi
+    
+    if [[ "$component" == "all" ]] || [[ "$component" == "backend" ]]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "/repository: lightclick-backend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        else
+            sed -i "/repository: lightclick-backend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        fi
+        print_success "Updated backend tag to $tag"
+    fi
+    
+    if [[ "$component" == "all" ]] || [[ "$component" == "worker" ]]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "/repository: lightclick-worker/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        else
+            sed -i "/repository: lightclick-worker/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
+        fi
+        print_success "Updated worker tag to $tag"
+    fi
+    
+    echo ""
+    print_info "Step 3: Deploying to App Platform..."
+    
+    # Get app ID
+    local app_id
+    if [ -f "$SCRIPT_DIR/.do/app-id.txt" ]; then
+        app_id=$(cat "$SCRIPT_DIR/.do/app-id.txt")
+    else
+        print_error "App ID not found in .do/app-id.txt"
+        exit 1
+    fi
+    
+    # Deploy
+    update_app "$app_id"
+    
+    echo ""
+    print_success "Deployment complete! Tag: $tag"
+}
+
 # Function to show usage
 show_usage() {
     echo "DigitalOcean App Platform Deployment Script"
@@ -217,7 +282,9 @@ show_usage() {
     echo ""
     echo "Commands:"
     echo "  create              Create a new app from app.yaml"
-    echo "  update [app-id]     Update existing app (uses saved ID if not provided)"
+    echo "  update [app-id]     Update app spec only (no build)"
+    echo "  deploy [component]  Build, push, and deploy with versioned tags"
+    echo "                      component: frontend, backend, worker, all (default)"
     echo "  list                List all apps"
     echo "  info [app-id]       Get app information"
     echo "  logs [app-id] [type] View logs (BUILD|DEPLOY|RUN)"
@@ -225,8 +292,9 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  ./deploy.sh create"
-    echo "  ./deploy.sh update abc123"
-    echo "  ./deploy.sh update          # Uses saved app ID"
+    echo "  ./deploy.sh deploy              # Build and deploy all components"
+    echo "  ./deploy.sh deploy frontend     # Only frontend"
+    echo "  ./deploy.sh update              # Update app spec only"
     echo "  ./deploy.sh logs abc123 BUILD"
     echo "  ./deploy.sh validate"
     echo ""
@@ -266,6 +334,13 @@ main() {
             validate_app_spec
             echo ""
             update_app "${2:-}"
+            ;;
+        deploy)
+            check_doctl
+            check_auth
+            check_app_spec
+            echo ""
+            build_and_deploy "${2:-all}"
             ;;
         list)
             check_doctl
