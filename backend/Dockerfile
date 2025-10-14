@@ -49,4 +49,7 @@ USER appuser
 EXPOSE 8000
 
 # Use production server settings
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Workers configurable via WEB_CONCURRENCY env var (defaults to 1)
+# Recommended: 1 worker per 512MB RAM (1 for 512MB, 2 for 1GB, 4 for 2GB)
+# Use shell form to enable variable expansion
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}"]

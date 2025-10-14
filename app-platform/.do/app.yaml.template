@@ -1,0 +1,300 @@
+# DigitalOcean App Platform Specification
+# LightClick Studio
+# 
+# Deployment: DigitalOcean Container Registry (DOCR)
+# Databases: Managed PostgreSQL + Managed Valkey
+
+name: lightclick-studio
+region: fra  # Frankfurt (same as current droplet)
+
+# Custom domain configuration
+domains:
+  - domain: lightclick.studio
+    type: PRIMARY
+  - domain: www.lightclick.studio
+    type: ALIAS
+
+# App-level environment variables (shared across all services)
+envs:
+  # Database & Redis (SECRETS)
+  - key: DATABASE_URL
+    value: "YOUR_DATABASE_URL"  # Get from DigitalOcean Managed PostgreSQL
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: REDIS_URL
+    value: "YOUR_REDIS_URL"  # Get from DigitalOcean Managed Valkey
+    type: SECRET
+    scope: RUN_TIME
+  
+  # JWT Configuration
+  - key: JWT_SECRET
+    value: "YOUR_JWT_SECRET"  # Generate with: openssl rand -base64 32
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: JWT_ALGORITHM
+    value: "HS256"
+  
+  - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+    value: "30"
+  
+  - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    value: "30"
+  
+  # PayPal Configuration
+  - key: PAYPAL_MODE
+    value: "sandbox"  # Change to "live" for production
+  
+  - key: PAYPAL_CLIENT_ID
+    value: "YOUR_PAYPAL_CLIENT_ID"  # Get from PayPal Developer Dashboard
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: PAYPAL_CLIENT_SECRET
+    value: "YOUR_PAYPAL_CLIENT_SECRET"  # Get from PayPal Developer Dashboard
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: PAYPAL_WEBHOOK_ID
+    value: "your-webhook-id"
+  
+  - key: PAYPAL_PLAN_ID_BASIC_MONTHLY
+    value: "P-8W767234S2019863KNDTB5IQ"
+  
+  - key: PAYPAL_PLAN_ID_BASIC_YEARLY
+    value: "P-8PB50059H6778791UNDTB5IY"
+  
+  - key: PAYPAL_PLAN_ID_PRO_MONTHLY
+    value: "P-9TP41619RC034474TNDTB5IY"
+  
+  - key: PAYPAL_PLAN_ID_PRO_YEARLY
+    value: "P-62C245608R087443KNDTB5JA"
+  
+  # AI Service (Nano Banana/Gemini)
+  - key: NANO_BANANA_API_KEY
+    value: "YOUR_GEMINI_API_KEY"  # Get from Google AI Studio
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: NANO_BANANA_API_URL
+    value: "https://generativelanguage.googleapis.com"
+  
+  - key: IMAGE_GENERATION_MODE
+    value: "live"  # or "mock" for testing
+  
+  - key: USE_VERTEX_AI
+    value: "false"
+  
+  # S3/Spaces Configuration
+  - key: S3_ENDPOINT
+    value: "https://fra1.digitaloceanspaces.com"
+  
+  - key: S3_PUBLIC_ENDPOINT
+    value: "https://productsnap.fra1.digitaloceanspaces.com"
+  
+  - key: S3_BUCKET
+    value: "productsnap"
+  
+  - key: S3_REGION
+    value: "us-east-1"
+  
+  - key: S3_ACCESS_KEY
+    value: "YOUR_SPACES_ACCESS_KEY"  # Get from DigitalOcean Spaces
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: S3_SECRET_KEY
+    value: "YOUR_SPACES_SECRET_KEY"  # Get from DigitalOcean Spaces
+    type: SECRET
+    scope: RUN_TIME
+  
+  # SMTP Configuration
+  - key: SMTP_HOST
+    value: "smtp.gmail.com"
+  
+  - key: SMTP_PORT
+    value: "587"
+  
+  - key: SMTP_TLS
+    value: "True"
+  
+  - key: SMTP_USER
+    value: "rave@lightclick.studio"
+  
+  - key: SMTP_PASSWORD
+    value: "YOUR_SMTP_PASSWORD"  # Gmail app password
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: SMTP_FROM_EMAIL
+    value: "rave@lightclick.studio"
+  
+  # Google OAuth
+  - key: GOOGLE_CLIENT_ID
+    value: "YOUR_GOOGLE_CLIENT_ID"  # Get from Google Cloud Console
+  
+  - key: GOOGLE_CLIENT_SECRET
+    value: "YOUR_GOOGLE_CLIENT_SECRET"  # Get from Google Cloud Console
+    type: SECRET
+    scope: RUN_TIME
+  
+  - key: GOOGLE_REDIRECT_URI
+    value: "https://lightclick.studio/api/auth/google/callback"
+  
+  - key: GOOGLE_CLOUD_PROJECT_ID
+    value: ""
+  
+  # General Configuration
+  - key: APP_NAME
+    value: "LightClick Studio"
+  
+  - key: LOG_LEVEL
+    value: "INFO"
+
+# Services (long-running containers)
+services:
+  # FastAPI Backend API
+  - name: backend
+    # Deploy from DOCR (update with your registry name)
+    image:
+      registry_type: DOCR
+      registry: productsnap-registry  # UPDATE: Use your registry name
+      repository: lightclick-backend
+      tag: latest
+    
+    # Override CMD to use WEB_CONCURRENCY (Dockerfile CMD not working)
+    run_command: "sh -c 'uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}'"
+    
+    # HTTP configuration
+    http_port: 8000
+    
+    # Instance configuration
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb  # $5/month - 512MB RAM, 0.5 vCPU
+    
+    # Auto-scaling (optional - uncomment to enable)
+    # autoscaling:
+    #   min_instance_count: 1
+    #   max_instance_count: 3
+    #   metrics:
+    #     cpu:
+    #       percent: 80
+    
+    # Routing - API endpoints (prefix matching)
+    routes:
+      - path: /api
+        preserve_path_prefix: true
+      - path: /health
+    
+    # Health check - /health is now lightweight (no DB/Redis checks)
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    
+    # Service-specific environment variables only
+    envs:
+      - key: FRONTEND_URL
+        value: "${APP_URL}"  # Auto-populated by App Platform
+      
+      - key: BACKEND_URL
+        value: "${APP_URL}/api"
+      
+      # Uvicorn worker count - adjust based on instance size
+      # apps-s-1vcpu-0.5gb (512MB): 1-2 workers (currently 2)
+      # apps-s-1vcpu-1gb (1GB):     2-3 workers
+      # apps-s-1vcpu-2gb (2GB):     4 workers
+      - key: WEB_CONCURRENCY
+        value: "2"
+
+  # React Frontend (Nginx static server)
+  - name: frontend
+    # Deploy from DOCR
+    image:
+      registry_type: DOCR
+      registry: productsnap-registry
+      repository: lightclick-frontend
+      tag: latest
+    
+    # HTTP configuration
+    http_port: 80
+    
+    # Instance configuration
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb  # $5/month
+    
+    # Routing - Frontend (catch-all)
+    routes:
+      - path: /
+    
+    # Health check (nginx default page)
+    health_check:
+      http_path: /
+      initial_delay_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 3
+    
+    # Environment variables
+    envs:
+      - key: VITE_API_URL
+        value: "${APP_URL}/api"
+
+# Workers (background jobs, no HTTP)
+workers:
+  # Background Worker (Job Processor)
+  - name: worker
+    # Deploy from DOCR
+    image:
+      registry_type: DOCR
+      registry: productsnap-registry
+      repository: lightclick-worker
+      tag: latest
+    
+    # Worker configuration
+    run_command: "python -m app.worker"
+    
+    # Instance configuration
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb  # $5/month
+    
+    # Environment variables (inherits app-level vars)
+    envs:
+      - key: FRONTEND_URL
+        value: "${APP_URL}"
+      
+      - key: BACKEND_URL
+        value: "${APP_URL}/api"
+
+# Alerts
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+
+# Features
+features:
+  - buildpack-stack=ubuntu-22
+
+# Notes on secrets management:
+# 
+# Set secrets via doctl CLI:
+# doctl apps update <app-id> --env="KEY=VALUE"
+# 
+# Or via App Platform console:
+# App Settings → Environment Variables → Edit → Add encrypted variables
+#
+# Required secrets to set:
+# - DATABASE_URL (PostgreSQL connection string)
+# - REDIS_URL (Managed Valkey connection string with TLS)
+# - JWT_SECRET
+# - PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET
+# - PAYPAL_PLAN_ID_* (all 4 plan IDs)
+# - NANO_BANANA_API_KEY
+# - S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
+# - SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMAIL
+# - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (if using OAuth)

@@ -5,6 +5,9 @@
 droplet/.env.production
 droplet/droplet-info.env
 
+# App Platform secrets
+app-platform/.do/app.yaml
+
 # OS
 .DS_Store
 Thumbs.db

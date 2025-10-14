@@ -22,18 +22,25 @@ export default function OAuthCallback() {
       })
 
       // Check if we're in a popup window
+      // Note: window.opener might exist but postMessage may be blocked by COOP
       const isPopup = window.opener && window.opener !== window
       console.log('[OAuthCallback] isPopup:', isPopup)
 
       if (error) {
         console.error('OAuth error:', error)
-        if (isPopup && window.opener) {
-          // Send error to parent window
-          window.opener.postMessage(
-            { type: 'OAUTH_ERROR', error },
-            window.location.origin
-          )
-          window.close()
+        if (isPopup) {
+          try {
+            // Try to send error to parent window
+            window.opener.postMessage(
+              { type: 'OAUTH_ERROR', error },
+              window.location.origin
+            )
+            window.close()
+          } catch (e) {
+            // If postMessage fails due to COOP, use fallback
+            console.warn('[OAuthCallback] postMessage blocked, using redirect')
+            navigate('/login?error=' + error)
+          }
         } else {
           navigate('/login?error=' + error)
         }
@@ -41,31 +48,46 @@ export default function OAuthCallback() {
       }
 
       if (!accessToken || !refreshToken) {
-        if (isPopup && window.opener) {
-          window.opener.postMessage(
-            { type: 'OAUTH_ERROR', error: 'Missing tokens' },
-            window.location.origin
-          )
-          window.close()
+        if (isPopup) {
+          try {
+            window.opener.postMessage(
+              { type: 'OAUTH_ERROR', error: 'Missing tokens' },
+              window.location.origin
+            )
+            window.close()
+          } catch (e) {
+            console.warn('[OAuthCallback] postMessage blocked, using redirect')
+            navigate('/login?error=missing_tokens')
+          }
         } else {
           navigate('/login?error=missing_tokens')
         }
         return
       }
 
-      if (isPopup && window.opener) {
-        // Send tokens to parent window via postMessage
-        window.opener.postMessage(
-          {
-            type: 'OAUTH_SUCCESS',
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          },
-          window.location.origin
-        )
-        // Close the popup
-        window.close()
-      } else {
+      // Try popup communication first, fall back to traditional flow
+      if (isPopup) {
+        try {
+          // Send tokens to parent window via postMessage
+          window.opener.postMessage(
+            {
+              type: 'OAUTH_SUCCESS',
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            },
+            window.location.origin
+          )
+          // Close the popup
+          window.close()
+          return  // Exit early if successful
+        } catch (e) {
+          // If postMessage fails due to COOP, continue to fallback flow
+          console.warn('[OAuthCallback] postMessage blocked by COOP, using fallback redirect flow')
+        }
+      }
+      
+      // Fallback: traditional redirect flow (if not in popup or postMessage blocked)
+      {
         // Fallback: traditional redirect flow (if not in popup)
         console.log('[OAuthCallback] Using fallback redirect flow')
         try {

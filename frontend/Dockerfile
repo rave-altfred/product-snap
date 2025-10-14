@@ -9,11 +9,8 @@ CMD ["npm", "run", "dev"]
 FROM node:18-alpine as build
 WORKDIR /app
 
-# Install git for version generation
+# Install git for version generation (optional, used if available)
 RUN apk add --no-cache git
-
-# Copy git metadata for version info (from root context)
-COPY .git/ ./.git/
 
 # Install dependencies first (this layer will be cached unless package.json changes)
 COPY frontend/package*.json ./

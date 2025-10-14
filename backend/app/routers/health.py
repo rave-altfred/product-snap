@@ -12,11 +12,21 @@ router = APIRouter()
 
 
 @router.get("/health")
-async def health_check(
+async def health_check():
+    """Lightweight health check endpoint for App Platform.
+    
+    Returns OK immediately without checking DB/Redis to avoid timeouts.
+    Use /health/detailed for full health check with DB/Redis.
+    """
+    return {"status": "ok"}
+
+
+@router.get("/health/detailed")
+async def health_check_detailed(
     db: Session = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client)
 ):
-    """Health check endpoint."""
+    """Detailed health check endpoint (checks DB and Redis)."""
     # Check database
     try:
         db.execute(text("SELECT 1"))

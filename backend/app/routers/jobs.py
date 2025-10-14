@@ -34,7 +34,7 @@ async def create_job(
     mode: str = Form(...),
     prompt_override: Optional[str] = Form(None),
     shadow_option: Optional[str] = Form(None),
-    model_gender: Optional[str] = Form(None),
+    subject_gender: Optional[str] = Form(None),  # Renamed from model_gender to avoid Pydantic warning
     scene_environment: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -185,8 +185,8 @@ async def create_job(
     prompt_metadata = {}
     if shadow_option:
         prompt_metadata['shadow_option'] = shadow_option
-    if model_gender:
-        prompt_metadata['model_gender'] = model_gender
+    if subject_gender:
+        prompt_metadata['subject_gender'] = subject_gender  # Keep same key for backward compatibility
     if scene_environment:
         prompt_metadata['scene_environment'] = scene_environment
     

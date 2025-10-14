@@ -93,7 +93,7 @@ class NanoBananaClient:
         mode: JobMode, 
         custom_prompt: Optional[str] = None,
         shadow_option: Optional[str] = None,
-        model_gender: Optional[str] = None,
+        subject_gender: Optional[str] = None,  # Renamed from model_gender
         scene_environment: Optional[str] = None
     ) -> str:
         """Get the prompt for a job mode with sub-options."""
@@ -108,10 +108,10 @@ class NanoBananaClient:
             elif shadow_option == 'drop_shadow':
                 modifications.append("Subtle, soft drop shadow directly beneath the product for a natural grounded appearance. "
                                     "The shadow should be faint, diffuse, and fade smoothly — consistent with professional studio lighting.")
-        if mode == JobMode.MODEL_TRYON and model_gender:
-            if model_gender == 'male':
+        if mode == JobMode.MODEL_TRYON and subject_gender:
+            if subject_gender == 'male':
                 modifications.append("Show on a male model with masculine features and styling.")
-            elif model_gender == 'female':
+            elif subject_gender == 'female':
                 modifications.append("Show on a female model with feminine features and styling.")
         
         if mode == JobMode.LIFESTYLE_SCENE and scene_environment:
@@ -136,7 +136,7 @@ class NanoBananaClient:
         mode: JobMode,
         custom_prompt: Optional[str] = None,
         shadow_option: Optional[str] = None,
-        model_gender: Optional[str] = None,
+        subject_gender: Optional[str] = None,  # Renamed from model_gender
         scene_environment: Optional[str] = None
     ) -> Dict:
         """Create a new image generation job."""
@@ -144,7 +144,7 @@ class NanoBananaClient:
             mode, 
             custom_prompt, 
             shadow_option, 
-            model_gender, 
+            subject_gender, 
             scene_environment
         )
         

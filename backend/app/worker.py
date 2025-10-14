@@ -80,16 +80,16 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
             # Parse prompt metadata (sub-options)
             import json
             shadow_option = None
-            model_gender = None
+            subject_gender = None  # Renamed from model_gender
             scene_environment = None
             
             if job.prompt:
                 try:
                     prompt_metadata = json.loads(job.prompt)
                     shadow_option = prompt_metadata.get('shadow_option')
-                    model_gender = prompt_metadata.get('model_gender')
+                    subject_gender = prompt_metadata.get('subject_gender')  # New key
                     scene_environment = prompt_metadata.get('scene_environment')
-                    logger.info(f"Job {job_id} sub-options: shadow={shadow_option}, gender={model_gender}, environment={scene_environment}")
+                    logger.info(f"Job {job_id} sub-options: shadow={shadow_option}, gender={subject_gender}, environment={scene_environment}")
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse prompt metadata for job {job_id}")
             
@@ -99,7 +99,7 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
                 mode=job.mode,
                 custom_prompt=job.prompt_override,
                 shadow_option=shadow_option,
-                model_gender=model_gender,
+                subject_gender=subject_gender,
                 scene_environment=scene_environment
             )
             
@@ -193,10 +193,52 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
 
 async def worker_loop():
     """Main worker loop."""
+    print("[WORKER] Starting worker loop...", flush=True)
     logger.info("Worker starting...")
+    sys.stdout.flush()  # Force flush to ensure log appears
+    print("[WORKER] After first log, about to connect to Redis", flush=True)
     
-    redis = await get_redis_client()
+    # Log environment info for debugging
+    import os
+    redis_url_configured = "REDIS_URL" in os.environ
+    redis_url_prefix = os.environ.get("REDIS_URL", "")[:20] if redis_url_configured else "NOT_SET"
+    logger.info(f"Redis URL configured: {redis_url_configured}, prefix: {redis_url_prefix}")
+    print(f"[WORKER] Redis URL configured: {redis_url_configured}", flush=True)
+    sys.stdout.flush()
+    
+    logger.info("About to connect to Redis...")
+    sys.stdout.flush()
+    print("[WORKER] Logged Redis connection intent", flush=True)
+    
+    try:
+        redis = await get_redis_client()
+        logger.info("Redis connection established successfully")
+        print("[WORKER] Redis connected!", flush=True)
+        sys.stdout.flush()
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis: {type(e).__name__}: {e}", exc_info=True)
+        print(f"[WORKER] Redis connection FAILED: {type(e).__name__}: {e}", flush=True)
+        sys.stdout.flush()
+        # Don't raise immediately - let's try to provide more context
+        import traceback
+        traceback.print_exc()
+        sys.stderr.flush()
+        raise
+    
     rate_limiter = RateLimitService(redis)
+    
+    # Test database connection
+    try:
+        from sqlalchemy import text
+        test_db = SessionLocal()
+        test_db.execute(text("SELECT 1"))
+        test_db.close()
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}", exc_info=True)
+        raise
+    
+    logger.info("Worker initialization complete, starting main loop")
     
     while not shutdown_flag:
         db = SessionLocal()
@@ -250,15 +292,23 @@ async def check_stale_jobs():
 
 async def main():
     """Main entry point."""
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    # Run worker and stale job checker concurrently
-    await asyncio.gather(
-        worker_loop(),
-        check_stale_jobs()
-    )
+    try:
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # Run worker and stale job checker concurrently
+        await asyncio.gather(
+            worker_loop(),
+            check_stale_jobs()
+        )
+    except Exception as e:
+        logger.error(f"Worker failed to start: {e}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.error(f"Fatal error in worker: {e}", exc_info=True)
+        sys.exit(1)
