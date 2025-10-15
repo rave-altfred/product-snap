@@ -105,37 +105,16 @@ async def general_exception_handler(request: Request, exc: Exception):
 async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     
-    # Run database migrations
-    from alembic.config import Config
-    from alembic import command
-    from sqlalchemy import text
-    import os
-    
-    logger.info("Running database migrations...")
+    # Database tables created via Base.metadata.create_all() for now
+    # TODO: Re-enable migrations after initial deployment
+    logger.info("Using Base.metadata.create_all for table creation")
     try:
-        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "../alembic.ini"))
-        alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "../alembic"))
-        
-        # Try to upgrade, if it fails due to revision mismatch, fix alembic_version manually (one-time)
-        try:
-            command.upgrade(alembic_cfg, "head")
-        except Exception as migration_err:
-            if "Can't locate revision" in str(migration_err):
-                logger.warning(f"Migration history mismatch, fixing alembic_version table (one-time fix)")
-                # Manually update alembic_version table to our initial baseline
-                with engine.connect() as conn:
-                    conn.execute(text("UPDATE alembic_version SET version_num = '73f36f1f25f6'"))
-                    conn.commit()
-                logger.info("Reset alembic_version to initial schema baseline")
-                # Now apply payment table migration
-                command.upgrade(alembic_cfg, "head")
-            else:
-                raise
-        
-        logger.info("Database migrations completed")
+        from app import models  # Import all models to register them
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables ready")
     except Exception as e:
-        logger.error(f"Database migration failed: {e}")
-        # Don't fail startup - allow app to run even if migrations fail
+        logger.error(f"Database table creation failed: {e}")
+        # Don't fail startup
     
     # Initialize Redis
     await get_redis_client()
