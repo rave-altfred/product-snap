@@ -37,3 +37,4 @@ class Subscription(Base):
     
     # Relationships
     user = relationship("User", back_populates="subscription")
+    payments = relationship("Payment", back_populates="subscription")

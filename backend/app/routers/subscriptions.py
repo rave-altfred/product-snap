@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import uuid
 import logging
 
 from app.core.database import get_db
-from app.models import User, Subscription, SubscriptionPlan, SubscriptionStatus
+from app.models import User, Subscription, SubscriptionPlan, SubscriptionStatus, Payment
 from app.routers.auth import get_current_user
 from app.services.paypal_service import paypal_service
 
@@ -28,6 +28,15 @@ class SubscriptionResponse(BaseModel):
     status: str
     current_period_end: Optional[str] = None
     paypal_subscription_id: Optional[str] = None
+
+
+class PaymentHistoryItem(BaseModel):
+    id: str
+    amount: float
+    currency: str
+    status: str
+    description: Optional[str]
+    created_at: str
 
 
 @router.get("/me", response_model=SubscriptionResponse)
@@ -262,3 +271,26 @@ async def cancel_pending_subscription(
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=f"Failed to cancel pending subscription: {str(e)}")
+
+
+@router.get("/payments", response_model=List[PaymentHistoryItem])
+async def get_payment_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get payment history for current user."""
+    payments = db.query(Payment).filter(
+        Payment.user_id == current_user.id
+    ).order_by(Payment.created_at.desc()).limit(50).all()
+    
+    return [
+        PaymentHistoryItem(
+            id=payment.id,
+            amount=payment.amount,
+            currency=payment.currency,
+            status=payment.status,
+            description=payment.description,
+            created_at=payment.created_at.isoformat()
+        )
+        for payment in payments
+    ]

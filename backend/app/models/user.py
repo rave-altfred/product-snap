@@ -32,3 +32,4 @@ class User(Base):
     jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
     usage_counters = relationship("UsageCounter", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")

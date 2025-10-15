@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
 import logging
+import uuid
 from datetime import datetime
 
 from app.core.database import get_db
-from app.models import Subscription, SubscriptionStatus
+from app.models import Subscription, SubscriptionStatus, Payment
 from app.services.paypal_service import paypal_service
 
 logger = logging.getLogger(__name__)
@@ -160,13 +161,40 @@ async def handle_subscription_expired(resource: dict, db: Session):
 
 
 async def handle_payment_completed(resource: dict, db: Session):
-    """Handle payment completion (for billing info updates)."""
-    # This is mainly for logging and potential future billing history
+    """Handle payment completion and save to payment history."""
     payment_id = resource.get("id")
-    amount = resource.get("amount", {}).get("total", "unknown")
-    currency = resource.get("amount", {}).get("currency", "unknown")
+    amount_data = resource.get("amount", {})
+    amount = float(amount_data.get("total", 0))
+    currency = amount_data.get("currency", "USD")
+    
+    # Get subscription ID from billing agreement
+    billing_agreement_id = resource.get("billing_agreement_id")
+    
+    # Find subscription and user
+    subscription = None
+    if billing_agreement_id:
+        subscription = db.query(Subscription).filter(
+            Subscription.paypal_subscription_id == billing_agreement_id
+        ).first()
+    
+    if subscription:
+        # Create payment record
+        payment = Payment(
+            id=str(uuid.uuid4()),
+            user_id=subscription.user_id,
+            subscription_id=subscription.id,
+            paypal_payment_id=payment_id,
+            paypal_subscription_id=billing_agreement_id,
+            amount=amount,
+            currency=currency,
+            status="completed",
+            payment_method="paypal",
+            description=f"{subscription.plan.value} subscription payment"
+        )
+        db.add(payment)
+        db.commit()
+        logger.info(f"Payment saved: {payment_id}, Amount: {amount} {currency}, User: {subscription.user_id}")
+    else:
+        logger.warning(f"Payment completed but no subscription found: {payment_id}, billing_agreement: {billing_agreement_id}")
     
     logger.info(f"Payment completed: {payment_id}, Amount: {amount} {currency}")
-    
-    # Could store payment history here if needed
-    # For now, we just log the successful payment

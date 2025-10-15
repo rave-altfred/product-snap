@@ -20,10 +20,20 @@ interface Subscription {
   paypal_subscription_id: string | null
 }
 
+interface PaymentHistoryItem {
+  id: string
+  amount: number
+  currency: string
+  status: string
+  description: string | null
+  created_at: string
+}
+
 export default function Billing() {
   // v2.1 - Testing cache
   const [plans, setPlans] = useState<Plan[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [payments, setPayments] = useState<PaymentHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
@@ -35,12 +45,14 @@ export default function Billing() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [plansResponse, subResponse] = await Promise.all([
+      const [plansResponse, subResponse, paymentsResponse] = await Promise.all([
         api.get('/api/subscriptions/plans'),
-        api.get('/api/subscriptions/me')
+        api.get('/api/subscriptions/me'),
+        api.get('/api/subscriptions/payments')
       ])
       setPlans(plansResponse.data.plans || [])
       setSubscription(subResponse.data)
+      setPayments(paymentsResponse.data || [])
     } catch (err: any) {
       setError(err.message || 'Failed to load billing information')
     } finally {
@@ -314,11 +326,56 @@ export default function Billing() {
       {/* Billing History */}
       <div className="card">
         <h2 className="text-xl font-bold mb-4">Billing History</h2>
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <CreditCard size={48} className="mx-auto mb-4 opacity-50" />
-          <p>No billing history yet</p>
-          <p className="text-sm mt-2">Your invoices will appear here</p>
-        </div>
+        {payments.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+            <CreditCard size={48} className="mx-auto mb-4 opacity-50" />
+            <p>No billing history yet</p>
+            <p className="text-sm mt-2">Your invoices will appear here</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-gray-200 dark:border-gray-700">
+                <tr className="text-left text-sm text-gray-500 dark:text-gray-400">
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Description</th>
+                  <th className="pb-3 font-medium text-right">Amount</th>
+                  <th className="pb-3 font-medium text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {payments.map((payment) => (
+                  <tr key={payment.id} className="text-sm">
+                    <td className="py-4 text-gray-900 dark:text-gray-100">
+                      {new Date(payment.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </td>
+                    <td className="py-4 text-gray-600 dark:text-gray-300">
+                      {payment.description || 'Subscription payment'}
+                    </td>
+                    <td className="py-4 text-right text-gray-900 dark:text-gray-100 font-medium">
+                      ${payment.amount.toFixed(2)} {payment.currency}
+                    </td>
+                    <td className="py-4 text-right">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        payment.status === 'completed'
+                          ? 'bg-success-100 dark:bg-success-900/20 text-success-700 dark:text-success-400'
+                          : payment.status === 'refunded'
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
+                          : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                      }`}>
+                        {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
