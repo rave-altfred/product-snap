@@ -14,6 +14,7 @@ register_heif_opener()
 from app.core.config import settings
 from app.core.logging import setup_logging, set_request_id
 from app.core.redis_client import get_redis_client, close_redis_client
+from app.core.database import Base, engine
 from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks, preview, branding
 
 # Setup logging
@@ -103,6 +104,22 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    
+    # Run database migrations
+    from alembic.config import Config
+    from alembic import command
+    import os
+    
+    logger.info("Running database migrations...")
+    try:
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "../alembic.ini"))
+        alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "../alembic"))
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations completed")
+    except Exception as e:
+        logger.error(f"Database migration failed: {e}")
+        # Don't fail startup - allow app to run even if migrations fail
+    
     # Initialize Redis
     await get_redis_client()
 
