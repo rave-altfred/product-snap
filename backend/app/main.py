@@ -114,7 +114,21 @@ async def startup_event():
     try:
         alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "../alembic.ini"))
         alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "../alembic"))
-        command.upgrade(alembic_cfg, "head")
+        
+        # Try to upgrade, if it fails due to revision mismatch, stamp and retry
+        try:
+            command.upgrade(alembic_cfg, "head")
+        except Exception as migration_err:
+            if "Can't locate revision" in str(migration_err):
+                logger.warning(f"Migration history mismatch, resetting: {migration_err}")
+                # Stamp current state as initial migration
+                command.stamp(alembic_cfg, "73f36f1f25f6")  # Initial schema revision
+                logger.info("Database stamped with initial migration")
+                # Now apply payment table migration
+                command.upgrade(alembic_cfg, "head")
+            else:
+                raise
+        
         logger.info("Database migrations completed")
     except Exception as e:
         logger.error(f"Database migration failed: {e}")
