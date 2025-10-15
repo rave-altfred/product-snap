@@ -1,0 +1,16 @@
+{
+  "CORSRules": [
+    {
+      "ID": "AllowFrontendAccess",
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedOrigins": [
+        "https://lightclick-studio-d4ht3.ondigitalocean.app",
+        "https://lightclick.studio",
+        "http://localhost:3000",
+        "http://localhost"
+      ],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
