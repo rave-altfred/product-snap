@@ -138,13 +138,13 @@ async def create_subscription(
         }
         plan_enum = plan_map[request.plan]
         
-        # Check if user already has an active subscription
+        # Check if user already has any subscription (we'll update it)
         existing_subscription = db.query(Subscription).filter(
-            Subscription.user_id == current_user.id,
-            Subscription.status == SubscriptionStatus.ACTIVE
+            Subscription.user_id == current_user.id
         ).first()
         
-        if existing_subscription and existing_subscription.plan != SubscriptionPlan.FREE:
+        # Block if user has an active non-free subscription
+        if existing_subscription and existing_subscription.status == SubscriptionStatus.ACTIVE and existing_subscription.plan != SubscriptionPlan.FREE:
             raise HTTPException(status_code=400, detail="You already have an active subscription.")
         
         # Create PayPal subscription
