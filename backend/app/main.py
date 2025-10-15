@@ -108,6 +108,7 @@ async def startup_event():
     # Run database migrations
     from alembic.config import Config
     from alembic import command
+    from sqlalchemy import text
     import os
     
     logger.info("Running database migrations...")
@@ -115,15 +116,17 @@ async def startup_event():
         alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "../alembic.ini"))
         alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "../alembic"))
         
-        # Try to upgrade, if it fails due to revision mismatch, stamp and retry
+        # Try to upgrade, if it fails due to revision mismatch, fix alembic_version manually (one-time)
         try:
             command.upgrade(alembic_cfg, "head")
         except Exception as migration_err:
             if "Can't locate revision" in str(migration_err):
-                logger.warning(f"Migration history mismatch, resetting: {migration_err}")
-                # Stamp current state as initial migration
-                command.stamp(alembic_cfg, "73f36f1f25f6")  # Initial schema revision
-                logger.info("Database stamped with initial migration")
+                logger.warning(f"Migration history mismatch, fixing alembic_version table (one-time fix)")
+                # Manually update alembic_version table to our initial baseline
+                with engine.connect() as conn:
+                    conn.execute(text("UPDATE alembic_version SET version_num = '73f36f1f25f6'"))
+                    conn.commit()
+                logger.info("Reset alembic_version to initial schema baseline")
                 # Now apply payment table migration
                 command.upgrade(alembic_cfg, "head")
             else:
