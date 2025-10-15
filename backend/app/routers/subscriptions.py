@@ -217,14 +217,20 @@ async def cancel_subscription(
         )
         
         if success:
-            subscription.status = SubscriptionStatus.CANCELLED
+            # Downgrade to free plan
+            subscription.plan = SubscriptionPlan.FREE
+            subscription.status = SubscriptionStatus.ACTIVE
+            subscription.paypal_subscription_id = None
+            subscription.current_period_start = None
+            subscription.current_period_end = None
             subscription.updated_at = datetime.utcnow()
             db.commit()
             
             return {
-                "message": "Subscription cancelled successfully.",
+                "message": "Subscription cancelled and downgraded to free plan.",
                 "subscription_id": subscription.id,
-                "status": "cancelled"
+                "status": "active",
+                "plan": "free"
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to cancel subscription with PayPal.")

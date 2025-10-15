@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 from app.core.database import get_db
-from app.models import Subscription, SubscriptionStatus, Payment
+from app.models import Subscription, SubscriptionStatus, SubscriptionPlan, Payment
 from app.services.paypal_service import paypal_service
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ async def handle_subscription_activated(resource: dict, db: Session):
 
 
 async def handle_subscription_cancelled(resource: dict, db: Session):
-    """Handle subscription cancellation."""
+    """Handle subscription cancellation and downgrade to free plan."""
     subscription_id = resource.get("id")
     if not subscription_id:
         logger.error("Missing subscription ID in cancellation event")
@@ -112,16 +112,21 @@ async def handle_subscription_cancelled(resource: dict, db: Session):
     ).first()
     
     if subscription:
-        subscription.status = SubscriptionStatus.CANCELLED
+        # Downgrade to free plan
+        subscription.plan = SubscriptionPlan.FREE
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.paypal_subscription_id = None
+        subscription.current_period_start = None
+        subscription.current_period_end = None
         subscription.updated_at = datetime.utcnow()
         db.commit()
-        logger.info(f"Subscription cancelled: {subscription_id}")
+        logger.info(f"Subscription cancelled and downgraded to free: {subscription_id}")
     else:
         logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
 
 
 async def handle_subscription_suspended(resource: dict, db: Session):
-    """Handle subscription suspension (treat as cancelled)."""
+    """Handle subscription suspension and downgrade to free plan."""
     subscription_id = resource.get("id")
     if not subscription_id:
         logger.error("Missing subscription ID in suspension event")
@@ -132,16 +137,21 @@ async def handle_subscription_suspended(resource: dict, db: Session):
     ).first()
     
     if subscription:
-        subscription.status = SubscriptionStatus.CANCELLED
+        # Downgrade to free plan
+        subscription.plan = SubscriptionPlan.FREE
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.paypal_subscription_id = None
+        subscription.current_period_start = None
+        subscription.current_period_end = None
         subscription.updated_at = datetime.utcnow()
         db.commit()
-        logger.info(f"Subscription suspended: {subscription_id}")
+        logger.info(f"Subscription suspended and downgraded to free: {subscription_id}")
     else:
         logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
 
 
 async def handle_subscription_expired(resource: dict, db: Session):
-    """Handle subscription expiration."""
+    """Handle subscription expiration and downgrade to free plan."""
     subscription_id = resource.get("id")
     if not subscription_id:
         logger.error("Missing subscription ID in expiration event")
@@ -152,10 +162,15 @@ async def handle_subscription_expired(resource: dict, db: Session):
     ).first()
     
     if subscription:
-        subscription.status = SubscriptionStatus.EXPIRED
+        # Downgrade to free plan
+        subscription.plan = SubscriptionPlan.FREE
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.paypal_subscription_id = None
+        subscription.current_period_start = None
+        subscription.current_period_end = None
         subscription.updated_at = datetime.utcnow()
         db.commit()
-        logger.info(f"Subscription expired: {subscription_id}")
+        logger.info(f"Subscription expired and downgraded to free: {subscription_id}")
     else:
         logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
 
