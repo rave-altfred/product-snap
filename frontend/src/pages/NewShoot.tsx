@@ -54,6 +54,7 @@ export default function NewShoot() {
   const [showCamera, setShowCamera] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const navigate = useNavigate()
@@ -237,24 +238,147 @@ export default function NewShoot() {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'environment' // Use back camera on mobile
-        } 
-      })
+      // Check if device is mobile/tablet - use native camera
+      const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches
+      
+      if (isMobileOrTablet) {
+        // On mobile/tablet, trigger native camera via file input
+        if (cameraInputRef.current) {
+          cameraInputRef.current.click()
+        }
+        return
+      }
+      
+      // Desktop: Use embedded camera
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('Camera API not available. Please use a modern browser with HTTPS.')
+        return
+      }
+
+      // Check for available video devices first
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter(device => device.kind === 'videoinput')
+        
+        if (videoDevices.length === 0) {
+          setError('No camera devices found. Please connect a camera or use file upload.')
+          return
+        }
+        
+        console.log('Available video devices:', videoDevices.length)
+      } catch (deviceErr) {
+        console.warn('Could not enumerate devices:', deviceErr)
+      }
+
+      // Try to get camera stream with progressive fallback
+      const constraints = [
+        // Try back camera first (mobile)
+        { video: { facingMode: { exact: 'environment' } } },
+        // Try front camera (mobile)
+        { video: { facingMode: 'user' } },
+        // Try any camera with preferences
+        { video: { width: { ideal: 1280 }, height: { ideal: 720 } } },
+        // Basic camera access
+        { video: true }
+      ]
+
+      let mediaStream = null
+      let lastError = null
+
+      for (const constraint of constraints) {
+        try {
+          console.log('Trying camera constraint:', constraint)
+          mediaStream = await navigator.mediaDevices.getUserMedia(constraint)
+          console.log('Camera access successful with constraint:', constraint)
+          break
+        } catch (err: any) {
+          lastError = err
+          console.log('Camera constraint failed:', constraint, err.name, err.message)
+        }
+      }
+
+      if (!mediaStream) {
+        throw lastError
+      }
       
       setStream(mediaStream)
       setShowCamera(true)
       setError('')
       
+      // Wait for video element to be ready and set up stream
       if (videoRef.current) {
+        console.log('Setting video srcObject to mediaStream')
         videoRef.current.srcObject = mediaStream
+        
+        // Add event listeners to debug video loading
+        const video = videoRef.current
+        
+        const onLoadedMetadata = () => {
+          console.log('Video metadata loaded:', {
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            readyState: video.readyState
+          })
+        }
+        
+        const onCanPlay = () => {
+          console.log('Video can start playing')
+          // Ensure video starts playing on mobile
+          video.play().catch(err => {
+            console.warn('Auto-play failed, user interaction required:', err)
+          })
+        }
+        
+        const onError = (e: any) => {
+          console.error('Video element error:', e)
+        }
+        
+        video.addEventListener('loadedmetadata', onLoadedMetadata)
+        video.addEventListener('canplay', onCanPlay)
+        video.addEventListener('error', onError)
+        
+        // Clean up event listeners
+        const cleanup = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata)
+          video.removeEventListener('canplay', onCanPlay)
+          video.removeEventListener('error', onError)
+        }
+        
+        // Store cleanup function
+        ;(video as any)._cleanup = cleanup
+      } else {
+        console.warn('Video ref not available when setting stream')
+        // If video ref is not ready, try again after a short delay
+        setTimeout(() => {
+          if (videoRef.current && mediaStream) {
+            console.log('Retrying video srcObject setup')
+            videoRef.current.srcObject = mediaStream
+          }
+        }, 100)
       }
-    } catch (err) {
-      setError('Could not access camera. Please check permissions.')
-      console.error('Camera error:', err)
+    } catch (err: any) {
+      console.error('Camera error details:', {
+        name: err.name,
+        message: err.message,
+        constraint: err.constraint,
+        stack: err.stack
+      })
+      
+      // Provide specific error messages based on error type
+      if (err.name === 'NotAllowedError') {
+        setError('Camera access denied. Click the camera icon in your browser\'s address bar and allow camera access, then try again.')
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found. Please ensure you have a camera connected and try the file upload option instead.')
+      } else if (err.name === 'NotReadableError') {
+        setError('Camera is busy or blocked by another application. Please close other apps using the camera.')
+      } else if (err.name === 'OverconstrainedError') {
+        setError('Camera settings not supported. Please try the file upload option.')
+      } else if (err.name === 'SecurityError') {
+        setError('Camera access blocked due to security settings. Please enable camera permissions and ensure you\'re on a secure connection.')
+      } else {
+        setError(`Camera unavailable (${err.name}). Please use the file upload option instead.`)
+      }
     }
   }
 
@@ -263,6 +387,13 @@ export default function NewShoot() {
       stream.getTracks().forEach(track => track.stop())
       setStream(null)
     }
+    
+    // Clean up video event listeners
+    if (videoRef.current && (videoRef.current as any)._cleanup) {
+      ;(videoRef.current as any)._cleanup()
+      delete (videoRef.current as any)._cleanup
+    }
+    
     setShowCamera(false)
   }
 
@@ -313,6 +444,7 @@ export default function NewShoot() {
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 className="w-full max-h-96 rounded-lg bg-black"
               />
               <canvas ref={canvasRef} className="hidden" />
@@ -341,27 +473,57 @@ export default function NewShoot() {
             </div>
           ) : !selectedFile ? (
             <div className="space-y-4">
-              <div
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 sm:p-12 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-              >
-                <Upload size={36} className="sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-                <p className="text-base sm:text-lg mb-2 text-gray-900 dark:text-gray-100">Drop your image here or click to browse</p>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Supports JPG, PNG, WebP, HEIC/HEIF up to 10MB</p>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-gray-500 dark:text-gray-400 mb-3">or</div>
+              {/* Mobile-first layout: Camera first, then gallery */}
+              <div className="block lg:hidden">
+                {/* Mobile: Camera button first */}
                 <button
                   type="button"
                   onClick={startCamera}
-                  className="btn btn-secondary inline-flex items-center gap-2"
+                  className="btn btn-primary w-full py-4 mb-4 inline-flex items-center justify-center gap-3 text-lg"
                 >
-                  <Camera size={20} />
+                  <Camera size={24} />
                   Take Photo with Camera
                 </button>
+                
+                <div className="text-center mb-3">
+                  <div className="text-gray-500 dark:text-gray-400 text-sm">or</div>
+                </div>
+                
+                {/* Mobile: Gallery button */}
+                <div
+                  className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload size={32} className="mx-auto mb-3 text-gray-400 dark:text-gray-500" />
+                  <p className="text-base mb-1 text-gray-900 dark:text-gray-100">Choose from Gallery</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Browse your photos</p>
+                </div>
+              </div>
+              
+              {/* Desktop layout: Upload area first, then camera */}
+              <div className="hidden lg:block">
+                <div
+                  className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 sm:p-12 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                >
+                  <Upload size={36} className="sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
+                  <p className="text-base sm:text-lg mb-2 text-gray-900 dark:text-gray-100">Drop your image here or click to browse</p>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Supports JPG, PNG, WebP, HEIC/HEIF up to 10MB</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-gray-500 dark:text-gray-400 mb-3">or</div>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="btn btn-secondary inline-flex items-center gap-2"
+                  >
+                    <Camera size={20} />
+                    Take Photo with Camera
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -416,6 +578,16 @@ export default function NewShoot() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          {/* Hidden camera input for mobile devices */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
             onChange={handleFileSelect}
             className="hidden"
           />

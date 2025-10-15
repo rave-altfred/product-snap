@@ -102,7 +102,12 @@ export default function Dashboard() {
             <div className="stat-card">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-400">
-                  {stats.period === 'day' ? 'IMAGES GENERATED TODAY' : 'IMAGES GENERATED THIS MONTH'}
+                  {stats.period === 'total' 
+                    ? 'IMAGES GENERATED'
+                    : stats.period === 'day' 
+                      ? 'IMAGES GENERATED TODAY' 
+                      : 'IMAGES GENERATED THIS MONTH'
+                  }
                 </span>
                 <Zap className="text-primary-600" size={20} />
               </div>

@@ -22,7 +22,8 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "full_name": current_user.full_name,
         "avatar_url": current_user.avatar_url,
         "created_at": current_user.created_at.isoformat(),
-        "is_admin": current_user.is_admin
+        "is_admin": current_user.is_admin,
+        "oauth_provider": current_user.oauth_provider.value if current_user.oauth_provider else None
     }
 
 

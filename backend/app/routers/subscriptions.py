@@ -225,3 +225,40 @@ async def cancel_subscription(
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=f"Failed to cancel subscription: {str(e)}")
+
+
+@router.post("/cancel-pending")
+async def cancel_pending_subscription(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancel a pending subscription that was never completed."""
+    try:
+        subscription = db.query(Subscription).filter(
+            Subscription.user_id == current_user.id,
+            Subscription.status == SubscriptionStatus.PENDING
+        ).first()
+        
+        if not subscription:
+            raise HTTPException(status_code=404, detail="No pending subscription found.")
+        
+        # For pending subscriptions, just delete or reset to free
+        # No need to contact PayPal since payment was never completed
+        subscription.plan = SubscriptionPlan.FREE
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.paypal_subscription_id = None
+        subscription.updated_at = datetime.utcnow()
+        db.commit()
+        
+        return {
+            "message": "Pending subscription cancelled successfully.",
+            "subscription_id": subscription.id,
+            "status": "active",
+            "plan": "free"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail=f"Failed to cancel pending subscription: {str(e)}")

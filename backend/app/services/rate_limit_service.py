@@ -14,9 +14,9 @@ class RateLimitService:
         """Get rate limits for a subscription plan."""
         if plan == SubscriptionPlan.FREE:
             return {
-                "jobs_per_day": settings.FREE_JOBS_PER_DAY,
+                "jobs_total": settings.FREE_JOBS_PER_DAY,  # This is actually total, not per day
                 "concurrent_jobs": settings.FREE_CONCURRENT_JOBS,
-                "period": "day"
+                "period": "total"
             }
         elif plan in [SubscriptionPlan.BASIC_MONTHLY, SubscriptionPlan.BASIC_YEARLY]:
             return {
@@ -32,9 +32,9 @@ class RateLimitService:
             }
         # Fallback to free plan limits if unknown plan
         return {
-            "jobs_per_day": settings.FREE_JOBS_PER_DAY,
+            "jobs_total": settings.FREE_JOBS_PER_DAY,  # This is actually total, not per day
             "concurrent_jobs": settings.FREE_CONCURRENT_JOBS,
-            "period": "day"
+            "period": "total"
         }
     
     async def check_job_limit(self, user_id: str, plan: SubscriptionPlan) -> tuple[bool, str]:
@@ -43,8 +43,9 @@ class RateLimitService:
         
         # Check usage limit
         if plan == SubscriptionPlan.FREE:
-            period_key = f"usage:{user_id}:{datetime.utcnow().strftime('%Y-%m-%d')}"
-            max_jobs = limits["jobs_per_day"]
+            # Use lifetime total for Free plan (no expiration)
+            period_key = f"usage_total:{user_id}"
+            max_jobs = limits["jobs_total"]
         else:
             period_key = f"usage:{user_id}:{datetime.utcnow().strftime('%Y-%m')}"
             max_jobs = limits.get("jobs_per_month", 0)
@@ -53,7 +54,8 @@ class RateLimitService:
         current_usage = int(current_usage) if current_usage else 0
         
         if current_usage >= max_jobs:
-            return False, f"Usage limit exceeded ({max_jobs} jobs per {limits['period']})"
+            period_text = "total" if limits['period'] == "total" else f"per {limits['period']}"
+            return False, f"Usage limit exceeded ({max_jobs} jobs {period_text})"
         
         # Check concurrent jobs
         concurrent_key = f"concurrent:{user_id}"
@@ -68,14 +70,15 @@ class RateLimitService:
     async def increment_usage(self, user_id: str, plan: SubscriptionPlan):
         """Increment user's job usage counter."""
         if plan == SubscriptionPlan.FREE:
-            period_key = f"usage:{user_id}:{datetime.utcnow().strftime('%Y-%m-%d')}"
-            ttl = 86400  # 1 day
+            # Use lifetime total for Free plan (no expiration)
+            period_key = f"usage_total:{user_id}"
+            await self.redis.incr(period_key)
+            # No TTL for Free plan - it's a lifetime total
         else:
             period_key = f"usage:{user_id}:{datetime.utcnow().strftime('%Y-%m')}"
             ttl = 2592000  # 30 days
-        
-        await self.redis.incr(period_key)
-        await self.redis.expire(period_key, ttl)
+            await self.redis.incr(period_key)
+            await self.redis.expire(period_key, ttl)
     
     async def increment_concurrent(self, user_id: str):
         """Increment concurrent job counter."""
@@ -95,9 +98,9 @@ class RateLimitService:
         limits = self.get_plan_limits(plan)
         
         if plan == SubscriptionPlan.FREE:
-            period_key = f"usage:{user_id}:{datetime.utcnow().strftime('%Y-%m-%d')}"
-            max_jobs = limits["jobs_per_day"]
-            period = "day"
+            period_key = f"usage_total:{user_id}"
+            max_jobs = limits["jobs_total"]
+            period = "total"
         else:
             period_key = f"usage:{user_id}:{datetime.utcnow().strftime('%Y-%m')}"
             max_jobs = limits.get("jobs_per_month", 0)

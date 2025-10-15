@@ -41,7 +41,7 @@ export default function Library() {
 
   // Check if there are any active jobs
   const hasActiveJobs = useMemo(() => {
-    const active = jobs.some(job => job.status === 'QUEUED' || job.status === 'PROCESSING')
+    const active = jobs.some(job => job.status === 'queued' || job.status === 'processing' || job.status === 'pending')
     console.log('[Library] Active jobs check:', active, 'Total jobs:', jobs.length)
     return active
   }, [jobs])
@@ -97,7 +97,9 @@ export default function Library() {
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
-      link.download = filename || 'image.jpg'
+      // Replace extension with .png since generated images are PNG
+      const nameWithoutExt = filename ? filename.replace(/\.[^/.]+$/, '') : 'product_image'
+      link.download = `${nameWithoutExt}.png`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -267,17 +269,6 @@ export default function Library() {
                     <div className="text-center">
                       {getStatusIcon(job.status)}
                       <p className="text-sm text-gray-600 mt-2 capitalize">{job.status}</p>
-                      {job.status === 'processing' && job.progress && (
-                        <div className="mt-2">
-                          <div className="w-24 bg-gray-300 rounded-full h-2 mx-auto">
-                            <div 
-                              className="bg-blue-500 h-2 rounded-full transition-all"
-                              style={{ width: `${job.progress}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">{job.progress}%</p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -385,17 +376,6 @@ export default function Library() {
                   <p className="text-xs text-red-600 mt-2 truncate" title={job.error_message}>
                     Error: {job.error_message}
                   </p>
-                )}
-                
-                {job.result_urls && job.result_urls.length > 0 && (
-                  <div className="mt-3">
-                    <button
-                      onClick={() => openImageModal(job.result_urls, 0)}
-                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
-                    >
-                      View {job.result_urls.length} {job.result_urls.length === 1 ? 'result' : 'results'} →
-                    </button>
-                  </div>
                 )}
               </div>
             </div>

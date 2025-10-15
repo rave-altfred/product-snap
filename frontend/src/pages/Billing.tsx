@@ -79,6 +79,16 @@ export default function Billing() {
     }
   }
 
+  const handleCancelPending = async () => {
+    try {
+      setError(null)
+      await api.post('/api/subscriptions/cancel-pending')
+      await fetchData()
+    } catch (err: any) {
+      setError(err.message || 'Failed to cancel pending subscription')
+    }
+  }
+
   const getPaidPlans = () => {
     // Filter out free plan since we show it manually
     return plans.filter(plan => plan.id !== 'free')
@@ -121,6 +131,28 @@ export default function Billing() {
       {/* Current Subscription */}
       <div className="card mb-8">
         <h2 className="text-xl font-bold mb-4">Current Plan</h2>
+        
+        {/* Pending subscription alert */}
+        {subscription?.status === 'pending' && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+              <div className="flex-grow">
+                <h3 className="font-semibold text-yellow-900 dark:text-yellow-200">Payment Pending</h3>
+                <p className="text-yellow-700 dark:text-yellow-300 text-sm mb-3">
+                  Your subscription payment is pending. Complete the payment with PayPal or cancel to choose a different plan.
+                </p>
+                <button
+                  onClick={handleCancelPending}
+                  className="text-sm text-yellow-900 dark:text-yellow-200 underline hover:no-underline font-medium"
+                >
+                  Cancel pending subscription
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
@@ -139,7 +171,7 @@ export default function Billing() {
               )}
             </div>
           </div>
-          {subscription && subscription.plan !== 'free' && (
+          {subscription && subscription.plan !== 'free' && subscription.status === 'active' && (
             <button
               onClick={handleCancelSubscription}
               className="btn btn-secondary text-sm"
@@ -258,14 +290,20 @@ export default function Billing() {
                 </ul>
                 <button
                   onClick={() => handleSubscribe(`${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}`)}
-                  disabled={subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}`}
+                  disabled={subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}` && subscription?.status === 'active' || subscription?.status === 'pending'}
                   className={`btn w-full ${
-                    subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}`
+                    subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}` && subscription?.status === 'active'
                       ? 'btn-secondary cursor-not-allowed'
+                      : subscription?.status === 'pending'
+                      ? 'btn-secondary cursor-not-allowed opacity-50'
                       : 'btn-primary'
                   }`}
                 >
-                  {subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}` ? 'Current Plan' : 'Subscribe'}
+                  {subscription?.plan === `${plan.id}_${billingInterval === 'monthly' ? 'monthly' : 'yearly'}` && subscription?.status === 'active' 
+                    ? 'Current Plan' 
+                    : subscription?.status === 'pending'
+                    ? 'Payment Pending...'
+                    : 'Subscribe'}
                 </button>
               </div>
             )

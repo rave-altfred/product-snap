@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import { authApi, userApi } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import Footer from '../components/Footer'
 
 export default function Register() {
+  const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -14,6 +15,18 @@ export default function Register() {
   
   const { login } = useAuthStore()
   const navigate = useNavigate()
+
+  // Handle error from URL parameters (from OAuth redirect)
+  useEffect(() => {
+    const urlError = searchParams.get('error')
+    if (urlError) {
+      setError(decodeURIComponent(urlError))
+      // Clean up URL by removing error parameter
+      const newSearchParams = new URLSearchParams(searchParams)
+      newSearchParams.delete('error')
+      navigate('/register', { replace: true })
+    }
+  }, [searchParams, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +59,18 @@ export default function Register() {
       // Use relative URL so it works in both local and production
       const { data } = await axios.get('/api/auth/google/login')
       
-      // Open Google OAuth in popup window
+      // Check if device is mobile/tablet using CSS media query equivalent
+      const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches
+      
+      if (isMobileOrTablet) {
+        // On mobile/tablet, redirect to OAuth page directly
+        // Store current page to return after OAuth
+        sessionStorage.setItem('oauth_return_url', '/register')
+        window.location.href = data.authorization_url
+        return
+      }
+      
+      // Desktop: Open Google OAuth in popup window
       const width = 500
       const height = 600
       const left = window.screen.width / 2 - width / 2
