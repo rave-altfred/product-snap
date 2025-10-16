@@ -28,7 +28,10 @@ class EmailService:
     @staticmethod
     def render_template(template_name: str, **context) -> str:
         """Render an email template with context."""
-        from jinja2 import Markup
+        try:
+            from markupsafe import Markup
+        except ImportError:
+            from jinja2 import Markup
         
         # Mark HTML content as safe so Jinja2 doesn't escape it
         if 'content' in context:
