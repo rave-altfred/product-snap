@@ -4,6 +4,7 @@ import axios from 'axios'
 import { authApi, userApi } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import Footer from '../components/Footer'
+import logo from '../assets/lightclick-logo-noborder.png'
 
 export default function Login() {
   const [searchParams] = useSearchParams()
@@ -140,7 +141,13 @@ export default function Login() {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="max-w-md w-full card">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">Login to LightClick</h2>
+        <div className="flex justify-center mb-6">
+          <img 
+            src={logo} 
+            alt="LightClick Logo" 
+            className="h-12 sm:h-16"
+          />
+        </div>
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -161,7 +168,15 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium">Password</label>
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-primary-600 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}

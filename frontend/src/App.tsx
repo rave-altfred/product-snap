@@ -3,6 +3,8 @@ import { useAuthStore } from './store/authStore'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import OAuthCallback from './pages/OAuthCallback'
 import Dashboard from './pages/Dashboard'
 import NewShoot from './pages/NewShoot'
@@ -12,6 +14,7 @@ import Account from './pages/Account'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import Branding from './pages/Branding'
+import Contact from './pages/Contact'
 import Layout from './components/Layout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -51,10 +54,13 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<OAuthCallback />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/branding" element={<Branding />} />
+      <Route path="/contact" element={<Contact />} />
       
       <Route element={<Layout />}>
         <Route

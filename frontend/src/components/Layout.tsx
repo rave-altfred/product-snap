@@ -1,7 +1,7 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { LogOut, Camera, FolderOpen, CreditCard, User, Home, Menu, X } from 'lucide-react'
+import { LogOut, Camera, FolderOpen, CreditCard, User, Home, Menu, X, MessageSquare } from 'lucide-react'
 import { version } from '../version'
 import logo from '../assets/logo.png'
 import Footer from './Footer'
@@ -99,7 +99,15 @@ export default function Layout() {
                 <LogOut size={18} />
               </button>
             </div>
-            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
+              <Link 
+                to="/contact" 
+                className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors px-2"
+                title="Contact Support"
+              >
+                <MessageSquare size={12} />
+                Contact Support
+              </Link>
               <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center font-mono" title="Application Version">
                 v{version}
               </p>
@@ -160,7 +168,16 @@ export default function Layout() {
                     <LogOut size={18} />
                   </button>
                 </div>
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
+                  <Link 
+                    to="/contact" 
+                    onClick={closeMobileMenu}
+                    className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors px-2"
+                    title="Contact Support"
+                  >
+                    <MessageSquare size={12} />
+                    Contact Support
+                  </Link>
                   <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center font-mono" title="Application Version">
                     v{version}
                   </p>

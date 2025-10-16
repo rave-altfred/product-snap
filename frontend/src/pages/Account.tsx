@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { User, Mail, Calendar, Key, LogOut, AlertCircle, Check } from 'lucide-react'
+import { User, Mail, Calendar, Key, LogOut, AlertCircle, Check, Trash2, MessageSquare } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../lib/api'
+import { useNavigate, Link } from 'react-router-dom'
 
 interface UserProfile {
   id: string
@@ -13,6 +14,7 @@ interface UserProfile {
 
 export default function Account() {
   const { logout } = useAuthStore()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,6 +26,7 @@ export default function Account() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [updating, setUpdating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -96,6 +99,30 @@ export default function Account() {
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
       logout()
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    const confirmation = prompt(
+      'This action cannot be undone. All your data will be permanently deleted. If you have an active subscription, it will be cancelled.\n\nType "DELETE" to confirm:'
+    )
+    
+    if (confirmation !== 'DELETE') {
+      return
+    }
+
+    try {
+      setDeleting(true)
+      setError(null)
+      
+      await api.delete('/api/users/delete-account')
+      
+      // Logout and redirect to home
+      logout()
+      navigate('/')
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete account')
+      setDeleting(false)
     }
   }
 
@@ -194,7 +221,7 @@ export default function Account() {
       </div>
 
       {/* Change Password */}
-      {!profile?.oauth_provider && (
+      {!loading && profile && (!profile.oauth_provider || profile.oauth_provider === 'email') && (
         <div className="card mb-6">
           <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
             <Key size={20} />
@@ -253,11 +280,35 @@ export default function Account() {
         </div>
       )}
 
+      {/* Contact Support */}
+      <div className="card mb-6">
+        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <MessageSquare size={20} />
+          Contact Support
+        </h2>
+        
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+          <p className="text-blue-800 dark:text-blue-200 mb-3">
+            Need help? Have a question about your account or our service?
+          </p>
+          <p className="text-sm text-blue-600 dark:text-blue-300 mb-4">
+            Our support team typically responds within 24-48 hours.
+          </p>
+          <Link
+            to="/contact"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+          >
+            <MessageSquare size={16} />
+            Contact Support
+          </Link>
+        </div>
+      </div>
+
       {/* Danger Zone */}
       <div className="card border-2 border-red-200 dark:border-red-800">
         <h2 className="text-xl font-bold mb-4 text-red-600 dark:text-red-400">Danger Zone</h2>
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6 pb-6 border-b border-red-200 dark:border-red-800">
           <div>
             <h3 className="font-semibold mb-1">Logout</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -270,6 +321,23 @@ export default function Account() {
           >
             <LogOut size={16} />
             Logout
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="max-w-2xl">
+            <h3 className="font-semibold mb-1 text-red-600 dark:text-red-400">Delete Account</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Permanently delete your account and all data. Active subscriptions will be cancelled.
+            </p>
+          </div>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={deleting}
+            className="btn btn-secondary text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+          >
+            <Trash2 size={16} />
+            {deleting ? 'Deleting...' : 'Delete Account'}
           </button>
         </div>
       </div>

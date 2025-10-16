@@ -38,6 +38,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     data: RegisterRequest,
@@ -220,6 +229,85 @@ async def verify_email(
     await redis_client.delete(f"email_verify:{token}")
     
     return {"message": "Email verified successfully"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client)
+):
+    """Request password reset email."""
+    # Find user by email
+    user = db.query(User).filter(User.email == data.email).first()
+    
+    # Always return success even if user doesn't exist (security best practice)
+    # This prevents email enumeration attacks
+    if not user:
+        return {"message": "If that email exists, a password reset link has been sent"}
+    
+    # Only allow password reset for email/password users
+    if user.oauth_provider != OAuthProvider.EMAIL:
+        return {"message": "If that email exists, a password reset link has been sent"}
+    
+    # Generate reset token
+    reset_token = AuthService.generate_verification_token()
+    await redis_client.setex(
+        f"password_reset:{reset_token}",
+        3600,  # 1 hour
+        user.id
+    )
+    
+    # Send reset email
+    try:
+        await email_service.send_password_reset_email(
+            user.email,
+            reset_token,
+            user.full_name
+        )
+    except Exception as e:
+        logger.error(f"Failed to send password reset email: {e}")
+        # Don't expose error to user
+    
+    return {"message": "If that email exists, a password reset link has been sent"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client)
+):
+    """Reset password with token."""
+    # Verify token
+    user_id = await redis_client.get(f"password_reset:{data.token}")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Decode user_id if it's bytes
+    if isinstance(user_id, bytes):
+        user_id = user_id.decode()
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Update password
+    user.password_hash = AuthService.hash_password(data.new_password)
+    db.commit()
+    
+    # Delete token
+    await redis_client.delete(f"password_reset:{data.token}")
+    
+    logger.info(f"Password reset successful for user {user.email}")
+    
+    return {"message": "Password reset successfully"}
 
 
 # Helper to get current user from token

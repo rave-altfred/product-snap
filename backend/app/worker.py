@@ -163,17 +163,6 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
             
             db.commit()
             
-            # Send completion email
-            try:
-                await email_service.send_job_completion_email(
-                    user.email,
-                    user.full_name,
-                    job.id,
-                    job.mode.value
-                )
-            except Exception as e:
-                logger.warning(f"Failed to send completion email: {e}")
-            
             logger.info(f"Job {job_id} completed successfully")
             
         except Exception as e:

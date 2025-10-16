@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging, set_request_id
 from app.core.redis_client import get_redis_client, close_redis_client
 from app.core.database import Base, engine
-from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks, preview, branding
+from app.routers import auth, jobs, subscriptions, users, admin, health, webhooks, preview, branding, contact
 
 # Setup logging
 logger = setup_logging()
@@ -136,6 +136,7 @@ app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Sub
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(preview.router, prefix="/api/preview", tags=["Preview"])
+app.include_router(contact.router, prefix="/api", tags=["Contact"])
 
 
 @app.get("/")

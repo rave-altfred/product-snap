@@ -130,6 +130,9 @@ envs:
   - key: SMTP_FROM_EMAIL
     value: "rave@lightclick.studio"
   
+  - key: SUPPORT_EMAIL
+    value: "support@lightclick.studio"  # Email for support requests
+  
   # Google OAuth
   - key: GOOGLE_CLIENT_ID
     value: "YOUR_GOOGLE_CLIENT_ID"  # Get from Google Cloud Console

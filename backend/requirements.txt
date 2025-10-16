@@ -30,6 +30,7 @@ botocore==1.32.7
 # Email
 aiosmtplib==3.0.1
 email-validator==2.1.0
+jinja2==3.1.2
 
 # Image processing
 Pillow==11.3.0
