@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: str = ""  # Loaded from secret file if SMTP_PASSWORD_FILE is set
-    SMTP_FROM: str = "noreply@productsnap.com"
+    SMTP_FROM: str = "LightClick Studio Support <support@lightclick.studio>"
     SMTP_TLS: bool = True
     
     # URLs

@@ -60,7 +60,6 @@ function App() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/branding" element={<Branding />} />
-      <Route path="/contact" element={<Contact />} />
       
       <Route element={<Layout />}>
         <Route
@@ -100,6 +99,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Account />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <ProtectedRoute>
+              <Contact />
             </ProtectedRoute>
           }
         />

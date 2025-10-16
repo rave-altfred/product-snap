@@ -28,6 +28,12 @@ class EmailService:
     @staticmethod
     def render_template(template_name: str, **context) -> str:
         """Render an email template with context."""
+        from jinja2 import Markup
+        
+        # Mark HTML content as safe so Jinja2 doesn't escape it
+        if 'content' in context:
+            context['content'] = Markup(context['content'])
+        
         template = jinja_env.get_template(template_name)
         return template.render(
             logo_url=EmailService.LOGO_URL,
@@ -49,22 +55,17 @@ class EmailService:
             logger.warning(f"SMTP not configured, skipping email to {to_email}")
             return
         
-        # Create message with proper encoding
-        message = MIMEMultipart("alternative")
+        # Create HTML-only message (simpler, more reliable)
+        message = MIMEText(html_content, "html", "utf-8")
         message["From"] = settings.SMTP_FROM
         message["To"] = to_email
         message["Subject"] = subject
-        message["MIME-Version"] = "1.0"
         
-        # Add text and HTML parts with explicit charset
-        # Plain text should come first (least preferred)
-        if text_content:
-            part_text = MIMEText(text_content, "plain", "utf-8")
-            message.attach(part_text)
+        # Explicitly set Content-Type to ensure HTML rendering
+        message.replace_header("Content-Type", 'text/html; charset="utf-8"')
         
-        # HTML comes last (most preferred)
-        part_html = MIMEText(html_content, "html", "utf-8")
-        message.attach(part_html)
+        # Debug logging
+        logger.info(f"Sending email with Content-Type: {message.get('Content-Type')}")
         
         try:
             await aiosmtplib.send(

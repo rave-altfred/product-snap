@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { Send, Mail, MessageSquare, User, ArrowLeft } from 'lucide-react'
+import { Send, Mail, MessageSquare, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const CATEGORIES = [
@@ -40,7 +40,8 @@ export default function Contact() {
         headers['Authorization'] = `Bearer ${token}`
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contact/support`, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'https://lightclick.studio'
+      const response = await fetch(`${API_BASE}/api/contact/support`, {
         method: 'POST',
         headers,
         body: JSON.stringify(formData)
@@ -68,39 +69,37 @@ export default function Contact() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto">
-          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Send className="w-8 h-8 text-green-600 dark:text-green-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Message Sent! ✓
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-8">
-              Thanks for reaching out! We've received your message and will get back to you within 24-48 hours.
-            </p>
-            <div className="space-y-3">
-              <Link
-                to={user ? "/dashboard" : "/"}
-                className="block w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-              >
-                {user ? "Back to Dashboard" : "Back to Home"}
-              </Link>
-              <button
-                onClick={() => {
-                  setSubmitted(false)
-                  setFormData(prev => ({
-                    ...prev,
-                    subject: '',
-                    message: ''
-                  }))
-                }}
-                className="block w-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium py-3 px-4 transition-colors"
-              >
-                Send Another Message
-              </button>
-            </div>
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Send className="w-8 h-8 text-green-600 dark:text-green-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            Message Sent! ✓
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-8">
+            Thanks for reaching out! We've received your message and will get back to you within 24-48 hours.
+          </p>
+          <div className="space-y-3">
+            <Link
+              to="/dashboard"
+              className="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+            <button
+              onClick={() => {
+                setSubmitted(false)
+                setFormData(prev => ({
+                  ...prev,
+                  subject: '',
+                  message: ''
+                }))
+              }}
+              className="block w-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium py-3 px-4 transition-colors"
+            >
+              Send Another Message
+            </button>
           </div>
         </div>
       </div>
@@ -108,7 +107,7 @@ export default function Contact() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="p-8 max-w-4xl mx-auto animate-fade-in">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -219,23 +218,14 @@ export default function Contact() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to={user ? "/dashboard" : "/"}
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-              >
-                <Send className="w-4 h-4" />
-                {loading ? 'Sending...' : 'Send Message'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              {loading ? 'Sending...' : 'Send Message'}
+            </button>
           </form>
         </div>
 
