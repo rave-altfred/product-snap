@@ -65,3 +65,6 @@ frontend/.env.test
 tmp/
 temp/
 *.tmp
+
+
+trivy-scan/
