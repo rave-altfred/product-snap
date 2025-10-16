@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || ''
+// Use environment variable if available, otherwise default to production URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://lightclick.studio/api'
 
 export const api = axios.create({
   baseURL: API_URL,
