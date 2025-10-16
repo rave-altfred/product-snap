@@ -215,6 +215,10 @@ async def verify_email(
             detail="Invalid or expired verification token"
         )
     
+    # Decode user_id if it's bytes
+    if isinstance(user_id, bytes):
+        user_id = user_id.decode()
+    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
@@ -229,6 +233,61 @@ async def verify_email(
     await redis_client.delete(f"email_verify:{token}")
     
     return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    db: Session = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Resend email verification link."""
+    # Get current user
+    payload = AuthService.decode_access_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already verified"
+        )
+    
+    # Generate new verification token
+    verification_token = AuthService.generate_verification_token()
+    await redis_client.setex(
+        f"email_verify:{verification_token}",
+        86400,  # 24 hours
+        user.id
+    )
+    
+    # Send verification email
+    try:
+        await email_service.send_verification_email(
+            user.email,
+            verification_token,
+            user.full_name
+        )
+    except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email"
+        )
+    
+    return {"message": "Verification email sent"}
 
 
 @router.post("/forgot-password")

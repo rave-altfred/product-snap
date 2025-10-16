@@ -61,6 +61,7 @@ class EmailService:
         # Create HTML-only message (simpler, more reliable)
         message = MIMEText(html_content, "html", "utf-8")
         message["From"] = settings.SMTP_FROM
+        message["Reply-To"] = settings.SMTP_FROM
         message["To"] = to_email
         message["Subject"] = subject
         

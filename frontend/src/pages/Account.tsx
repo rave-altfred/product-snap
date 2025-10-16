@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { User, Mail, Calendar, Key, LogOut, AlertCircle, Check, Trash2, MessageSquare } from 'lucide-react'
+import { User, Mail, Calendar, Key, LogOut, AlertCircle, Check, Trash2, MessageSquare, MailCheck, MailWarning } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../lib/api'
 import { useNavigate, Link } from 'react-router-dom'
@@ -7,6 +7,7 @@ import { useNavigate, Link } from 'react-router-dom'
 interface UserProfile {
   id: string
   email: string
+  email_verified: boolean
   full_name: string | null
   created_at: string
   oauth_provider: string | null
@@ -27,6 +28,7 @@ export default function Account() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [resendingVerification, setResendingVerification] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -126,6 +128,21 @@ export default function Account() {
     }
   }
 
+  const handleResendVerification = async () => {
+    try {
+      setResendingVerification(true)
+      setError(null)
+      setSuccess(null)
+      
+      await api.post('/auth/resend-verification')
+      setSuccess('Verification email sent! Please check your inbox.')
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to send verification email')
+    } finally {
+      setResendingVerification(false)
+    }
+  }
+
   return (
     <div className="p-8 max-w-4xl mx-auto animate-fade-in" style={{ opacity: loading ? 0.5 : 1, transition: 'opacity 0.15s ease-in-out' }}>
       <h1 className="text-3xl font-bold mb-2">Account Settings</h1>
@@ -193,9 +210,28 @@ export default function Account() {
               disabled
               className="input w-full bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
             />
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Email cannot be changed
-            </p>
+            
+            {/* Email Verification Status */}
+            {profile?.email_verified ? (
+              <div className="flex items-center gap-2 mt-2 text-green-600 dark:text-green-400">
+                <MailCheck size={16} />
+                <span className="text-sm font-medium">Email verified</span>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 mb-2">
+                  <MailWarning size={16} />
+                  <span className="text-sm font-medium">Email not verified</span>
+                </div>
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification}
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                >
+                  {resendingVerification ? 'Sending...' : 'Resend verification email'}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mb-4">
