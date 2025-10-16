@@ -5,8 +5,10 @@
 droplet/.env.production
 droplet/droplet-info.env
 
-# App Platform secrets
+# App Platform secrets (actual configs with credentials)
 app-platform/.do/app.yaml
+app-platform/.do/app-dev.yaml
+app-platform/.do/app-id*.txt
 
 # OS
 .DS_Store
