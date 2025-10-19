@@ -17,6 +17,8 @@ async def health_check():
     
     Returns OK immediately without checking DB/Redis to avoid timeouts.
     Use /health/detailed for full health check with DB/Redis.
+    
+    Updated: 2025-10-16 12:22 - Testing environment-prefixed tags (dev-v/prod-v)
     """
     return {"status": "ok"}
 

@@ -28,16 +28,17 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# CORS middleware
+# CORS middleware - Environment-aware origins
+# Only allow frontend from same environment + localhost for local dev
+allowed_origins = [
+    settings.FRONTEND_URL,  # Environment-specific frontend
+    "http://localhost:3000",  # Local dev
+    "http://localhost:5173",  # Local dev (Vite)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_URL, 
-        "http://localhost:3000",
-        "https://lightclick.studio",
-        "https://www.lightclick.studio",
-        "https://lightclick-studio-d4ht3.ondigitalocean.app"
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
