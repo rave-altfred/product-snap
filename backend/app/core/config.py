@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     SMTP_FROM: str = "LightClick Studio Support <support@lightclick.studio>"
     SMTP_TLS: bool = True
     
+    # PostHog Analytics
+    POSTHOG_API_KEY: Optional[str] = None
+    POSTHOG_HOST: str = "https://eu.i.posthog.com"
+    
     # URLs
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"

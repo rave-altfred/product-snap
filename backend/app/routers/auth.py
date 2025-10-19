@@ -13,6 +13,8 @@ from app.core.redis_client import get_redis_client
 from app.models import User, OAuthProvider
 from app.services.auth_service import AuthService
 from app.services.email_service import email_service
+from app.services.rate_limit_service import RateLimitService
+from app.services.analytics_service import analytics
 import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
@@ -58,6 +60,7 @@ async def register(
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == data.email).first()
     if existing_user:
+        # Don't increment rate limit for duplicate email (not abuse, just error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
@@ -99,8 +102,30 @@ async def register(
         ip_address=request.client.host
     )
     
-    # Create access token
-    access_token = AuthService.create_access_token({"sub": user.id, "email": user.email})
+    # Create access token with session ID
+    access_token = AuthService.create_access_token(
+        {"sub": user.id, "email": user.email},
+        session_id=session.id
+    )
+    
+    # Increment rate limit after successful registration
+    await rate_limiter.increment_auth_attempts(client_ip, "register", window_seconds=900)
+    
+    # Track user registration
+    analytics.identify(
+        user_id=str(user.id),
+        properties={
+            "email": user.email,
+            "name": user.full_name,
+            "oauth_provider": "email",
+        }
+    )
+    analytics.capture(
+        user_id=str(user.id),
+        event="user_registered",
+        properties={"method": "email"}
+    )
+    analytics.flush()  # Ensure events are sent immediately
     
     return TokenResponse(
         access_token=access_token,
@@ -112,17 +137,34 @@ async def register(
 async def login(
     data: LoginRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client)
 ):
     """Login with email and password."""
+    # Check rate limit (5 attempts per 5 minutes per IP)
+    rate_limiter = RateLimitService(redis_client)
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, remaining = await rate_limiter.check_auth_rate_limit(client_ip, "login", max_attempts=5, window_seconds=300)
+    
+    if not allowed:
+        logger.warning(f"Login rate limit exceeded for IP {client_ip}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again in 5 minutes."
+        )
+    
     user = db.query(User).filter(User.email == data.email).first()
     if not user or not user.password_hash:
+        # Increment failed login attempts
+        await rate_limiter.increment_auth_attempts(client_ip, "login", window_seconds=300)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
     
     if not AuthService.verify_password(data.password, user.password_hash):
+        # Increment failed login attempts
+        await rate_limiter.increment_auth_attempts(client_ip, "login", window_seconds=300)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
@@ -142,8 +184,22 @@ async def login(
         ip_address=request.client.host
     )
     
-    # Create access token
-    access_token = AuthService.create_access_token({"sub": user.id, "email": user.email})
+    # Create access token with session ID
+    access_token = AuthService.create_access_token(
+        {"sub": user.id, "email": user.email},
+        session_id=session.id
+    )
+    
+    # Reset rate limit on successful login
+    await rate_limiter.reset_auth_attempts(client_ip, "login")
+    
+    # Track user login
+    analytics.capture(
+        user_id=str(user.id),
+        event="user_logged_in",
+        properties={"method": "email"}
+    )
+    analytics.flush()  # Ensure events are sent immediately
     
     return TokenResponse(
         access_token=access_token,
@@ -171,8 +227,11 @@ async def refresh_token(
             detail="User not found or disabled"
         )
     
-    # Create new access token
-    access_token = AuthService.create_access_token({"sub": user.id, "email": user.email})
+    # Create new access token with session ID
+    access_token = AuthService.create_access_token(
+        {"sub": user.id, "email": user.email},
+        session_id=session.id
+    )
     
     return TokenResponse(
         access_token=access_token,
@@ -185,7 +244,7 @@ async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Logout and revoke session."""
+    """Logout and revoke current session."""
     payload = AuthService.decode_access_token(credentials.credentials)
     if not payload:
         raise HTTPException(
@@ -193,15 +252,49 @@ async def logout(
             detail="Invalid token"
         )
     
-    # Revoke all user sessions (or specific one if we track session IDs in tokens)
+    # Get session ID from token
+    session_id = payload.get("sid")
     user_id = payload.get("sub")
-    # For now, we can't easily revoke without session ID in token
-    # In production, you'd want to track this
+    
+    if session_id:
+        # Revoke the specific session
+        revoked = AuthService.revoke_session(db, session_id)
+        if revoked:
+            logger.info(f"Session {session_id} revoked for user {user_id}")
+        else:
+            logger.warning(f"Session {session_id} not found for user {user_id}")
+    else:
+        # Fallback: session ID not in token (old tokens), revoke all user sessions
+        logger.warning(f"No session ID in token, revoking all sessions for user {user_id}")
+        count = AuthService.revoke_all_user_sessions(db, user_id)
+        logger.info(f"Revoked {count} session(s) for user {user_id}")
     
     return {"message": "Logged out successfully"}
 
 
-@router.post("/verify-email")
+@router.post("/logout-all")
+async def logout_all(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Logout from all devices by revoking all user sessions."""
+    payload = AuthService.decode_access_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    
+    user_id = payload.get("sub")
+    
+    # Revoke all sessions for this user
+    count = AuthService.revoke_all_user_sessions(db, user_id)
+    logger.info(f"Revoked all {count} session(s) for user {user_id}")
+    
+    return {"message": f"Logged out from all devices ({count} sessions revoked)"}
+
+
+@router.get("/verify-email")
 async def verify_email(
     token: str,
     db: Session = Depends(get_db),
@@ -293,12 +386,28 @@ async def resend_verification(
 @router.post("/forgot-password")
 async def forgot_password(
     data: ForgotPasswordRequest,
+    request: Request,
     db: Session = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client)
 ):
     """Request password reset email."""
+    # Check rate limit (3 attempts per 15 minutes per IP)
+    rate_limiter = RateLimitService(redis_client)
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, remaining = await rate_limiter.check_auth_rate_limit(client_ip, "forgot_password", max_attempts=3, window_seconds=900)
+    
+    if not allowed:
+        logger.warning(f"Forgot password rate limit exceeded for IP {client_ip}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset attempts. Please try again in 15 minutes."
+        )
+    
     # Find user by email
     user = db.query(User).filter(User.email == data.email).first()
+    
+    # Increment rate limit counter (always, even if user doesn't exist)
+    await rate_limiter.increment_auth_attempts(client_ip, "forgot_password", window_seconds=900)
     
     # Always return success even if user doesn't exist (security best practice)
     # This prevents email enumeration attacks
@@ -488,6 +597,21 @@ async def google_callback(
                     avatar_url=google_user_info.get("picture"),
                     email_verified=google_user_info.get("email_verified", False)
                 )
+                # Track new user registration
+                analytics.identify(
+                    user_id=str(user.id),
+                    properties={
+                        "email": user.email,
+                        "name": user.full_name,
+                        "oauth_provider": "google",
+                    }
+                )
+                analytics.capture(
+                    user_id=str(user.id),
+                    event="user_registered",
+                    properties={"method": "google"}
+                )
+                analytics.flush()
         
         # Create session
         refresh_token, session = AuthService.create_session(
@@ -497,8 +621,19 @@ async def google_callback(
             ip_address=request.client.host
         )
         
-        # Create access token
-        access_token = AuthService.create_access_token({"sub": user.id, "email": user.email})
+        # Create access token with session ID
+        access_token = AuthService.create_access_token(
+            {"sub": user.id, "email": user.email},
+            session_id=session.id
+        )
+        
+        # Track user login (for existing users)
+        analytics.capture(
+            user_id=str(user.id),
+            event="user_logged_in",
+            properties={"method": "google"}
+        )
+        analytics.flush()
         
         # Redirect to frontend with tokens
         redirect_url = (

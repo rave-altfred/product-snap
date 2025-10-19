@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, JSON, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, JSON, Text, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -22,6 +22,12 @@ class JobStatus(str, enum.Enum):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        # Composite index for common query: filter by user and status
+        Index('ix_job_user_status', 'user_id', 'status'),
+        # Index for finding stale jobs: status + started_at
+        Index('ix_job_status_started', 'status', 'started_at'),
+    )
     
     id = Column(String, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -45,6 +51,7 @@ class Job(Base):
     progress = Column(String, default=0)  # 0-100
     error_message = Column(Text, nullable=True)
     processing_time_seconds = Column(String, nullable=True)
+    retry_count = Column(String, default=0, nullable=False)  # Number of times job has been retried
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

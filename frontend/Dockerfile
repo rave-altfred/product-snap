@@ -9,9 +9,13 @@ CMD ["npm", "run", "dev"]
 FROM node:18-alpine as build
 WORKDIR /app
 
-# Accept API URL as build argument
+# Accept API URL and PostHog as build arguments
 ARG VITE_API_URL
+ARG VITE_POSTHOG_API_KEY
+ARG VITE_POSTHOG_HOST
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_POSTHOG_API_KEY=${VITE_POSTHOG_API_KEY}
+ENV VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}
 
 # Install git for version generation (optional, used if available)
 RUN apk add --no-cache git

@@ -265,6 +265,16 @@ Interactive API docs available when backend is running:
 
 All endpoints prefixed with `/api/` (except health check at `/health`).
 
+## Deployment Commands
+
+```bash
+# Deploy to production
+./app-platform/deploy.sh deploy prod
+
+# Deploy to development
+./app-platform/deploy.sh deploy dev
+```
+
 ## Production Deployment Notes
 
 - Use `docker-compose.prod.yml` overlay for production config

@@ -5,8 +5,10 @@ import uuid
 from datetime import datetime
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models import Subscription, SubscriptionStatus, SubscriptionPlan, Payment
 from app.services.paypal_service import paypal_service
+from app.services.analytics_service import analytics
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +40,26 @@ async def paypal_webhook(
             logger.warning(f"Missing required PayPal webhook headers. Got: transmission_id={transmission_id}, timestamp={timestamp}, cert_url={cert_url}, actual_signature={bool(actual_signature)}, auth_algo={auth_algo}")
             raise HTTPException(status_code=400, detail="Missing required webhook headers")
         
-        # For sandbox, skip signature verification (production should verify)
-        # Signature verification requires webhook ID which needs to be configured
-        logger.info("Webhook signature verification skipped for sandbox")
+        # Verify webhook signature if PAYPAL_WEBHOOK_ID is configured
+        if settings.PAYPAL_WEBHOOK_ID:
+            logger.info("Verifying webhook signature...")
+            is_valid = paypal_service.verify_webhook_signature(
+                transmission_id=transmission_id,
+                timestamp=timestamp,
+                webhook_id=settings.PAYPAL_WEBHOOK_ID,
+                event_body=body.decode('utf-8'),
+                cert_url=cert_url,
+                actual_signature=actual_signature,
+                auth_algo=auth_algo
+            )
+            
+            if not is_valid:
+                logger.error("Webhook signature verification failed")
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+            
+            logger.info("Webhook signature verified successfully")
+        else:
+            logger.warning("PAYPAL_WEBHOOK_ID not configured - webhook signature verification skipped. This is insecure for production!")
         
         # Parse event data
         event_data = await request.json()
@@ -102,6 +121,17 @@ async def handle_subscription_activated(resource: dict, db: Session):
         
         db.commit()
         logger.info(f"Subscription activated: {subscription_id}")
+        
+        # Track subscription activation
+        analytics.capture(
+            user_id=str(subscription.user_id),
+            event="subscription_activated",
+            properties={
+                "plan": subscription.plan,
+                "paypal_subscription_id": subscription_id,
+            }
+        )
+        analytics.flush()
     else:
         logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
 
@@ -127,6 +157,17 @@ async def handle_subscription_cancelled(resource: dict, db: Session):
         subscription.updated_at = datetime.utcnow()
         db.commit()
         logger.info(f"Subscription cancelled and downgraded to free: {subscription_id}")
+        
+        # Track subscription cancellation
+        analytics.capture(
+            user_id=str(subscription.user_id),
+            event="subscription_cancelled",
+            properties={
+                "previous_plan": subscription.plan,
+                "paypal_subscription_id": subscription_id,
+            }
+        )
+        analytics.flush()
     else:
         logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
 

@@ -28,21 +28,17 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# CORS middleware - Environment-aware origins
-# Only allow frontend from same environment + localhost for local dev
-allowed_origins = [
-    settings.FRONTEND_URL,  # Environment-specific frontend
-    "http://localhost:3000",  # Local dev
-    "http://localhost:5173",  # Local dev (Vite)
-]
-
+# CORS middleware - Only allow configured frontend URL
+# FRONTEND_URL is set per environment in DigitalOcean App Platform YAML
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[settings.FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logger.info(f"CORS configured for origin: {settings.FRONTEND_URL}")
 
 
 # Request ID middleware
@@ -112,16 +108,27 @@ async def general_exception_handler(request: Request, exc: Exception):
 async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     
-    # Database tables created via Base.metadata.create_all() for now
-    # TODO: Re-enable migrations after initial deployment
-    logger.info("Using Base.metadata.create_all for table creation")
+    # Run Alembic migrations on startup
+    logger.info("Running database migrations...")
     try:
-        from app import models  # Import all models to register them
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables ready")
+        from alembic.config import Config
+        from alembic import command
+        import os
+        
+        # Get the backend directory path
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alembic_cfg = Config(os.path.join(backend_dir, "alembic.ini"))
+        alembic_cfg.set_main_option("script_location", os.path.join(backend_dir, "alembic"))
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+        
+        # Run migrations to latest version
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations completed successfully")
     except Exception as e:
-        logger.error(f"Database table creation failed: {e}")
-        # Don't fail startup
+        logger.error(f"Database migration failed: {e}", exc_info=True)
+        # Don't fail startup - allow app to start even if migrations fail
+        # This prevents cascading failures in production
+        logger.warning("Continuing startup despite migration failure")
     
     # Initialize Redis
     await get_redis_client()

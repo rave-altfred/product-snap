@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -31,7 +31,7 @@ class Subscription(Base):
     paypal_plan_id = Column(String, nullable=True)
     current_period_start = Column(DateTime, nullable=True)
     current_period_end = Column(DateTime, nullable=True)
-    cancel_at_period_end = Column(String, default=False)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

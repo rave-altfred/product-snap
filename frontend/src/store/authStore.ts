@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import posthog from 'posthog-js'
 
 interface User {
   id: string
@@ -33,12 +34,26 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem('access_token', accessToken)
         localStorage.setItem('refresh_token', refreshToken)
         set({ user, isAuthenticated: true })
+        
+        // Identify user in PostHog
+        if (import.meta.env.VITE_POSTHOG_API_KEY) {
+          posthog.identify(user.id, {
+            email: user.email,
+            name: user.full_name,
+            is_admin: user.is_admin,
+          })
+        }
       },
       
       logout: () => {
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
         set({ user: null, isAuthenticated: false })
+        
+        // Reset PostHog user
+        if (import.meta.env.VITE_POSTHOG_API_KEY) {
+          posthog.reset()
+        }
       },
       
       setHasHydrated: (state) => {

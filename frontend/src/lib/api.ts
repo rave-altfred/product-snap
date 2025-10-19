@@ -72,7 +72,7 @@ export const authApi = {
     api.post('/api/auth/logout'),
   
   verifyEmail: (token: string) =>
-    api.post('/api/auth/verify-email', { token }),
+    api.get(`/api/auth/verify-email?token=${token}`),
   
   forgotPassword: (email: string) =>
     api.post('/api/auth/forgot-password', { email }),

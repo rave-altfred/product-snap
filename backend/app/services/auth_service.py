@@ -27,11 +27,13 @@ class AuthService:
         return pwd_context.verify(plain_password, hashed_password)
     
     @staticmethod
-    def create_access_token(data: dict) -> str:
+    def create_access_token(data: dict, session_id: Optional[str] = None) -> str:
         """Create a JWT access token."""
         to_encode = data.copy()
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire, "type": "access"})
+        if session_id:
+            to_encode["sid"] = session_id  # Add session ID to token
         return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     
     @staticmethod
@@ -133,10 +135,18 @@ class AuthService:
         return None
     
     @staticmethod
-    def revoke_session(db: Session, session_id: str):
-        """Revoke a user session."""
-        db.query(UserSession).filter(UserSession.id == session_id).delete()
+    def revoke_session(db: Session, session_id: str) -> bool:
+        """Revoke a specific user session."""
+        result = db.query(UserSession).filter(UserSession.id == session_id).delete()
         db.commit()
+        return result > 0
+    
+    @staticmethod
+    def revoke_all_user_sessions(db: Session, user_id: str) -> int:
+        """Revoke all sessions for a user. Returns count of revoked sessions."""
+        count = db.query(UserSession).filter(UserSession.user_id == user_id).delete()
+        db.commit()
+        return count
     
     @staticmethod
     def generate_verification_token() -> str:

@@ -121,3 +121,56 @@ class RateLimitService:
             "max_concurrent": limits["concurrent_jobs"],
             "remaining": max(0, max_jobs - current_usage)
         }
+    
+    async def check_auth_rate_limit(self, ip_address: str, endpoint: str, max_attempts: int = 5, window_seconds: int = 300) -> tuple[bool, int]:
+        """Check rate limit for auth endpoints (login, register, password reset).
+        
+        Args:
+            ip_address: Client IP address
+            endpoint: Endpoint name (e.g., 'login', 'register', 'forgot_password')
+            max_attempts: Maximum attempts allowed in the time window
+            window_seconds: Time window in seconds (default: 5 minutes)
+        
+        Returns:
+            Tuple of (allowed, remaining_attempts)
+        """
+        key = f"auth_rate_limit:{endpoint}:{ip_address}"
+        
+        # Get current attempt count
+        attempts = await self.redis.get(key)
+        current_attempts = int(attempts) if attempts else 0
+        
+        if current_attempts >= max_attempts:
+            # Check TTL to tell user when they can retry
+            ttl = await self.redis.ttl(key)
+            return False, 0
+        
+        return True, max_attempts - current_attempts
+    
+    async def increment_auth_attempts(self, ip_address: str, endpoint: str, window_seconds: int = 300):
+        """Increment auth attempt counter for an IP address.
+        
+        Args:
+            ip_address: Client IP address
+            endpoint: Endpoint name
+            window_seconds: Time window in seconds
+        """
+        key = f"auth_rate_limit:{endpoint}:{ip_address}"
+        
+        # Increment counter
+        await self.redis.incr(key)
+        
+        # Set expiration if this is the first attempt
+        ttl = await self.redis.ttl(key)
+        if ttl == -1:  # Key exists but has no expiration
+            await self.redis.expire(key, window_seconds)
+    
+    async def reset_auth_attempts(self, ip_address: str, endpoint: str):
+        """Reset auth attempt counter (e.g., after successful login).
+        
+        Args:
+            ip_address: Client IP address
+            endpoint: Endpoint name
+        """
+        key = f"auth_rate_limit:{endpoint}:{ip_address}"
+        await self.redis.delete(key)

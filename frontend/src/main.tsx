@@ -2,11 +2,23 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import posthog from 'posthog-js'
 import App from './App'
 import './index.css'
 import { useThemeStore, applyTheme } from './store/themeStore'
 
 console.log('[main.tsx] Starting app initialization')
+
+// Initialize PostHog
+if (import.meta.env.VITE_POSTHOG_API_KEY) {
+  posthog.init(import.meta.env.VITE_POSTHOG_API_KEY, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com',
+    person_profiles: 'identified_only', // Only track identified users
+    capture_pageview: true,
+    capture_pageleave: true,
+  })
+  console.log('[main.tsx] PostHog initialized')
+}
 
 // Initialize theme from store
 const storedTheme = localStorage.getItem('theme-storage')

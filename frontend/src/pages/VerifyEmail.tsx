@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useAuthStore } from '../store/authStore'
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [message, setMessage] = useState('')
 
@@ -19,14 +21,21 @@ export default function VerifyEmail() {
 
     const verifyEmail = async () => {
       try {
-        await api.post('/api/auth/verify-email', { token })
+        await api.get(`/api/auth/verify-email?token=${token}`)
         setStatus('success')
-        setMessage('Email verified successfully! Redirecting to login...')
         
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          navigate('/login')
-        }, 2000)
+        // Redirect based on authentication status
+        if (isAuthenticated) {
+          setMessage('Email verified successfully! Redirecting to dashboard...')
+          setTimeout(() => {
+            navigate('/dashboard')
+          }, 2000)
+        } else {
+          setMessage('Email verified successfully! Redirecting to login...')
+          setTimeout(() => {
+            navigate('/login')
+          }, 2000)
+        }
       } catch (error: any) {
         setStatus('error')
         setMessage(

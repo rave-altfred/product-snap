@@ -133,14 +133,21 @@ else
     API_URL="https://lightclick.studio"
 fi
 
+# PostHog configuration (same for both environments)
+POSTHOG_API_KEY="phc_OmHOpQohQb8bYKAnp5X1dCuTH7jENHCdibEjIOEU8ji"
+POSTHOG_HOST="https://eu.i.posthog.com"
+
 # Build frontend image
 print_info "Building frontend image..."
 print_info "API URL: $API_URL"
+print_info "PostHog: Enabled"
 docker build \
     --platform "$BUILD_PLATFORM" \
     --target production \
     -t "$FRONTEND_IMAGE" \
     --build-arg VITE_API_URL="$API_URL" \
+    --build-arg VITE_POSTHOG_API_KEY="$POSTHOG_API_KEY" \
+    --build-arg VITE_POSTHOG_HOST="$POSTHOG_HOST" \
     -f frontend/Dockerfile \
     .
 

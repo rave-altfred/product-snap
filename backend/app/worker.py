@@ -23,9 +23,10 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.redis_client import get_redis_client
 from app.models import Job, JobStatus, User
-from app.services.nano_banana_client import nano_banana_client
 from app.services.storage_service import storage_service
+from app.services.nano_banana_client import nano_banana_client
 from app.services.rate_limit_service import RateLimitService
+from app.services.analytics_service import analytics
 from app.services.email_service import email_service
 
 logger = setup_logging()
@@ -163,6 +164,18 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
             
             db.commit()
             
+            # Track successful job completion
+            analytics.capture(
+                user_id=str(user.id),
+                event="job_completed",
+                properties={
+                    "job_id": str(job.id),
+                    "mode": job.mode,
+                    "processing_time_seconds": int(processing_time) if job.started_at else None,
+                    "num_results": len(result_urls),
+                }
+            )
+            
             logger.info(f"Job {job_id} completed successfully")
             
         except Exception as e:
@@ -171,10 +184,23 @@ async def process_job(job_id: str, db: Session, redis, rate_limiter: RateLimitSe
             job.error_message = str(e)
             job.completed_at = datetime.utcnow()
             db.commit()
+            
+            # Track job failure
+            analytics.capture(
+                user_id=str(user.id),
+                event="job_failed",
+                properties={
+                    "job_id": str(job.id),
+                    "mode": job.mode,
+                    "error": str(e),
+                }
+            )
         
         finally:
             # Decrement concurrent counter
             await rate_limiter.decrement_concurrent(user.id)
+            # Flush PostHog events to ensure they're sent
+            analytics.flush()
     
     except Exception as e:
         logger.error(f"Error processing job {job_id}: {e}", exc_info=True)
