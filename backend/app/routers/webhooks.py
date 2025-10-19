@@ -59,6 +59,12 @@ async def paypal_webhook(
             await handle_subscription_expired(resource, db)
         elif event_type == "PAYMENT.SALE.COMPLETED":
             await handle_payment_completed(resource, db)
+        elif event_type == "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
+            await handle_payment_failed(resource, db)
+        elif event_type == "BILLING.SUBSCRIPTION.UPDATED":
+            await handle_subscription_updated(resource, db)
+        elif event_type == "PAYMENT.SALE.REFUNDED":
+            await handle_payment_refunded(resource, db)
         else:
             logger.info(f"Unhandled webhook event type: {event_type}")
         
@@ -213,3 +219,98 @@ async def handle_payment_completed(resource: dict, db: Session):
         logger.warning(f"Payment completed but no subscription found: {payment_id}, billing_agreement: {billing_agreement_id}")
     
     logger.info(f"Payment completed: {payment_id}, Amount: {amount} {currency}")
+
+
+async def handle_payment_failed(resource: dict, db: Session):
+    """Handle payment failure and downgrade subscription to free plan."""
+    subscription_id = resource.get("id")
+    if not subscription_id:
+        logger.error("Missing subscription ID in payment failed event")
+        return
+    
+    subscription = db.query(Subscription).filter(
+        Subscription.paypal_subscription_id == subscription_id
+    ).first()
+    
+    if subscription:
+        # Create a failed payment record for billing history
+        # Extract amount from last_failed_payment if available
+        last_failed_payment = resource.get("last_failed_payment", {})
+        amount_data = last_failed_payment.get("amount", {})
+        amount = float(amount_data.get("value", 0)) if amount_data.get("value") else 0.0
+        currency = amount_data.get("currency_code", "USD")
+        
+        # Create failed payment record
+        payment = Payment(
+            id=str(uuid.uuid4()),
+            user_id=subscription.user_id,
+            subscription_id=subscription.id,
+            paypal_payment_id=None,  # Failed payments may not have payment IDs
+            paypal_subscription_id=subscription_id,
+            amount=amount,
+            currency=currency,
+            status="failed",
+            payment_method="paypal",
+            description=f"{subscription.plan.value} subscription payment failed"
+        )
+        db.add(payment)
+        
+        # Downgrade to free plan on payment failure
+        subscription.plan = SubscriptionPlan.FREE
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.paypal_subscription_id = None
+        subscription.current_period_start = None
+        subscription.current_period_end = None
+        subscription.updated_at = datetime.utcnow()
+        db.commit()
+        logger.info(f"Subscription payment failed, downgraded to free: {subscription_id}, Payment record created: {payment.id}")
+    else:
+        logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
+
+
+async def handle_subscription_updated(resource: dict, db: Session):
+    """Handle subscription update (e.g., plan change)."""
+    subscription_id = resource.get("id")
+    if not subscription_id:
+        logger.error("Missing subscription ID in update event")
+        return
+    
+    subscription = db.query(Subscription).filter(
+        Subscription.paypal_subscription_id == subscription_id
+    ).first()
+    
+    if subscription:
+        # Update billing period if available
+        if "billing_info" in resource and "next_billing_time" in resource["billing_info"]:
+            try:
+                subscription.current_period_end = datetime.fromisoformat(
+                    resource["billing_info"]["next_billing_time"].replace("Z", "+00:00")
+                )
+            except ValueError:
+                logger.warning(f"Could not parse next_billing_time: {resource['billing_info']['next_billing_time']}")
+        
+        subscription.updated_at = datetime.utcnow()
+        db.commit()
+        logger.info(f"Subscription updated: {subscription_id}")
+    else:
+        logger.warning(f"Subscription not found for PayPal ID: {subscription_id}")
+
+
+async def handle_payment_refunded(resource: dict, db: Session):
+    """Handle payment refund."""
+    payment_id = resource.get("id")
+    sale_id = resource.get("sale_id")  # Original payment ID that was refunded
+    
+    # Find original payment by PayPal payment ID
+    payment = db.query(Payment).filter(
+        Payment.paypal_payment_id == sale_id
+    ).first()
+    
+    if payment:
+        # Update payment status to refunded
+        payment.status = "refunded"
+        payment.updated_at = datetime.utcnow()
+        db.commit()
+        logger.info(f"Payment refunded: {sale_id}, refund ID: {payment_id}")
+    else:
+        logger.warning(f"Original payment not found for refund: sale_id={sale_id}, refund_id={payment_id}")

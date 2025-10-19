@@ -67,7 +67,7 @@ class PayPalService:
         subscription_data = {
             "plan_id": plan_id,
             "application_context": {
-                "brand_name": "ProductSnap",
+                "brand_name": "LightClick Studio",
                 "locale": "en-US",
                 "shipping_preference": "NO_SHIPPING",
                 "user_action": "SUBSCRIBE_NOW",

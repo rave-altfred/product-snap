@@ -93,6 +93,7 @@ def create_webhook(access_token, webhook_url):
         {"name": "BILLING.SUBSCRIPTION.SUSPENDED"},
         {"name": "BILLING.SUBSCRIPTION.EXPIRED"},
         {"name": "BILLING.SUBSCRIPTION.UPDATED"},
+        {"name": "BILLING.SUBSCRIPTION.PAYMENT.FAILED"},
         {"name": "PAYMENT.SALE.COMPLETED"},
         {"name": "PAYMENT.SALE.REFUNDED"}
     ]
