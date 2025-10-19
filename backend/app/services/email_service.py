@@ -104,12 +104,18 @@ class EmailService:
         </p>
         
         <!-- CTA Button -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 30px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 30px 0;">
             <tr>
-                <td align="center" style="border-radius: 12px; background: linear-gradient(135deg, #1a8fb8 0%, #0f3a50 100%); box-shadow: 0 4px 12px rgba(26, 143, 184, 0.3);">
-                    <a href="{verification_url}" target="_blank" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                        ✓ Verify Email Address
-                    </a>
+                <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td align="center" style="border-radius: 12px; background: linear-gradient(135deg, #1a8fb8 0%, #0f3a50 100%); box-shadow: 0 4px 12px rgba(26, 143, 184, 0.3);">
+                                <a href="{verification_url}" target="_blank" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                                    ✓ Verify Email Address
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
         </table>

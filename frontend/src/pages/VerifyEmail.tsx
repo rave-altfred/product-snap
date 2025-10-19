@@ -19,9 +19,7 @@ export default function VerifyEmail() {
 
     const verifyEmail = async () => {
       try {
-        await api.post('/auth/verify-email', null, {
-          params: { token }
-        })
+        await api.post('/api/auth/verify-email', { token })
         setStatus('success')
         setMessage('Email verified successfully! Redirecting to login...')
         
