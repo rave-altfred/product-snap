@@ -3,12 +3,42 @@
 # Build and Push Images to DigitalOcean Container Registry (DOCR)
 # For App Platform deployment
 #
+# Usage:
+#   ./build-and-push.sh <dev|prod>
+#   ./build-and-push.sh dev     # Builds with :dev tag
+#   ./build-and-push.sh prod    # Builds with :prod tag
 
 set -e  # Exit on error
 
+# Parse environment argument
+ENVIRONMENT="${1:-}"
+
+# Validate environment is provided
+if [ -z "$ENVIRONMENT" ]; then
+    echo "Error: Environment parameter required"
+    echo "Usage: ./build-and-push.sh <dev|prod>"
+    echo ""
+    echo "Examples:"
+    echo "  ./build-and-push.sh dev"
+    echo "  ./build-and-push.sh prod"
+    exit 1
+fi
+
+# Validate environment value
+if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
+    echo "Error: Invalid environment '$ENVIRONMENT'"
+    echo "Usage: ./build-and-push.sh <dev|prod>"
+    echo "Valid environments: dev, prod"
+    exit 1
+fi
+
 # Configuration
 REGISTRY_NAME="${REGISTRY_NAME:-productsnap-registry}"
-TAG="${TAG:-latest}"
+# Generate tag with environment prefix and timestamp
+if [ -z "${TAG:-}" ]; then
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    TAG="${ENVIRONMENT}-v${TIMESTAMP}"
+fi
 BUILD_PLATFORM="${BUILD_PLATFORM:-linux/amd64}"
 
 # Colors for output
@@ -57,6 +87,7 @@ FRONTEND_IMAGE="${REGISTRY_URL}/lightclick-frontend:${TAG}"
 WORKER_IMAGE="${REGISTRY_URL}/lightclick-worker:${TAG}"
 
 print_info "Building and pushing images for App Platform"
+print_info "Environment: ${ENVIRONMENT}"
 print_info "Registry: ${REGISTRY_URL}"
 print_info "Tag: ${TAG}"
 print_info "Platform: ${BUILD_PLATFORM}"
@@ -94,13 +125,22 @@ fi
 print_info "Tagging worker image..."
 docker tag "$BACKEND_IMAGE" "$WORKER_IMAGE"
 
+# Set API URL based on environment
+# Note: Don't include /api suffix - endpoints already have it
+if [ "$ENVIRONMENT" = "dev" ]; then
+    API_URL="https://dev.lightclick.studio"
+else
+    API_URL="https://lightclick.studio"
+fi
+
 # Build frontend image
 print_info "Building frontend image..."
+print_info "API URL: $API_URL"
 docker build \
     --platform "$BUILD_PLATFORM" \
     --target production \
     -t "$FRONTEND_IMAGE" \
-    --build-arg VITE_API_URL="/api" \
+    --build-arg VITE_API_URL="$API_URL" \
     -f frontend/Dockerfile \
     .
 

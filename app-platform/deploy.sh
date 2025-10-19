@@ -4,9 +4,13 @@
 # 
 # This script deploys the application to DigitalOcean App Platform
 # Usage: 
-#   ./deploy.sh create              - Create new app
-#   ./deploy.sh update              - Update app spec only
-#   ./deploy.sh deploy              - Build, push, and deploy
+#   ./deploy.sh create [dev|prod]       - Create new app
+#   ./deploy.sh update [dev|prod]       - Update app spec only
+#   ./deploy.sh deploy [dev|prod]       - Build, push, and deploy
+#   ./deploy.sh list                    - List all apps
+#   ./deploy.sh info [dev|prod]         - Get app information
+#   ./deploy.sh logs [dev|prod] [type]  - View logs
+#   ./deploy.sh validate [dev|prod]     - Validate app spec
 
 set -e  # Exit on error
 
@@ -19,8 +23,41 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_SPEC_FILE="$SCRIPT_DIR/.do/app.yaml"
 REGION="fra"  # Frankfurt
+
+# Function to detect and set environment-specific variables
+set_environment() {
+    local env="${1:-}"
+    
+    # Check if environment is provided
+    if [ -z "$env" ]; then
+        print_error "Environment parameter required"
+        echo ""
+        echo "Usage: ./deploy.sh <command> <dev|prod>"
+        echo "Valid environments: dev, prod"
+        exit 1
+    fi
+    
+    # Validate environment value
+    if [[ "$env" != "dev" && "$env" != "prod" ]]; then
+        print_error "Invalid environment: $env"
+        echo "Valid environments: dev, prod"
+        exit 1
+    fi
+    
+    ENVIRONMENT="$env"
+    
+    # Set environment-specific file paths
+    if [[ "$ENVIRONMENT" == "dev" ]]; then
+        APP_SPEC_FILE="$SCRIPT_DIR/.do/app-dev.yaml"
+        APP_ID_FILE="$SCRIPT_DIR/.do/app-id-dev.txt"
+        ENV_LABEL="DEVELOPMENT"
+    else
+        APP_SPEC_FILE="$SCRIPT_DIR/.do/app.yaml"
+        APP_ID_FILE="$SCRIPT_DIR/.do/app-id.txt"
+        ENV_LABEL="PRODUCTION"
+    fi
+}
 
 # Function to print colored messages
 print_info() {
@@ -97,13 +134,8 @@ list_apps() {
 
 # Function to create new app
 create_app() {
-    local app_name=${1:-}
-    
-    print_info "Creating new app from spec..."
-    
-    if [ -n "$app_name" ]; then
-        print_info "App name: $app_name"
-    fi
+    print_info "Creating new $ENV_LABEL app from spec..."
+    print_info "Using spec: $APP_SPEC_FILE"
     
     # Create the app
     if doctl apps create --spec "$APP_SPEC_FILE" --format ID,Spec.Name,DefaultIngress --no-header > /tmp/app_create_output.txt; then
@@ -116,18 +148,17 @@ create_app() {
         APP_ID=$(awk '{print $1}' /tmp/app_create_output.txt)
         
         print_info "App ID: $APP_ID"
-        print_info "Save this ID for future updates!"
+        print_info "Environment: $ENVIRONMENT"
         
-        # Save app ID to file
-        echo "$APP_ID" > "$SCRIPT_DIR/.do/app-id.txt"
-        print_success "App ID saved to .do/app-id.txt"
+        # Save app ID to environment-specific file
+        echo "$APP_ID" > "$APP_ID_FILE"
+        print_success "App ID saved to $APP_ID_FILE"
         
         echo ""
         print_info "Monitor deployment:"
-        echo "  doctl apps list"
-        echo "  doctl apps get $APP_ID"
-        echo "  doctl apps logs $APP_ID --type=BUILD"
-        echo "  doctl apps logs $APP_ID --type=DEPLOY"
+        echo "  ./deploy.sh logs $ENVIRONMENT BUILD"
+        echo "  ./deploy.sh logs $ENVIRONMENT DEPLOY"
+        echo "  ./deploy.sh info $ENVIRONMENT"
         
         rm /tmp/app_create_output.txt
     else
@@ -142,20 +173,22 @@ update_app() {
     
     if [ -z "$app_id" ]; then
         # Try to read from saved file
-        if [ -f "$SCRIPT_DIR/.do/app-id.txt" ]; then
-            app_id=$(cat "$SCRIPT_DIR/.do/app-id.txt")
-            print_info "Using saved App ID: $app_id"
+        if [ -f "$APP_ID_FILE" ]; then
+            app_id=$(cat "$APP_ID_FILE")
+            print_info "Using saved $ENVIRONMENT App ID: $app_id"
         else
-            print_error "App ID not provided and not found in .do/app-id.txt"
+            print_error "App ID not provided and not found in $APP_ID_FILE"
             echo ""
-            echo "Usage: ./deploy.sh update <app-id>"
+            echo "Usage: ./deploy.sh update $ENVIRONMENT"
+            echo "Or create app first: ./deploy.sh create $ENVIRONMENT"
             echo ""
             list_apps
             exit 1
         fi
     fi
     
-    print_info "Updating app: $app_id"
+    print_info "Updating $ENV_LABEL app: $app_id"
+    print_info "Using spec: $APP_SPEC_FILE"
     
     # Update the app
     if doctl apps update "$app_id" --spec "$APP_SPEC_FILE"; then
@@ -163,9 +196,8 @@ update_app() {
         echo ""
         
         print_info "Monitor deployment:"
-        echo "  doctl apps get $app_id"
-        echo "  doctl apps logs $app_id --type=BUILD"
-        echo "  doctl apps logs $app_id --type=DEPLOY"
+        echo "  ./deploy.sh logs $ENVIRONMENT DEPLOY"
+        echo "  ./deploy.sh info $ENVIRONMENT"
         echo ""
         echo "View in browser:"
         echo "  https://cloud.digitalocean.com/apps/$app_id"
@@ -180,16 +212,16 @@ get_app_info() {
     local app_id=$1
     
     if [ -z "$app_id" ]; then
-        if [ -f "$SCRIPT_DIR/.do/app-id.txt" ]; then
-            app_id=$(cat "$SCRIPT_DIR/.do/app-id.txt")
+        if [ -f "$APP_ID_FILE" ]; then
+            app_id=$(cat "$APP_ID_FILE")
         else
-            print_error "App ID not provided"
-            echo "Usage: ./deploy.sh info <app-id>"
+            print_error "App ID not provided and not found in $APP_ID_FILE"
+            echo "Usage: ./deploy.sh info $ENVIRONMENT"
             exit 1
         fi
     fi
     
-    print_info "App information:"
+    print_info "$ENV_LABEL app information:"
     doctl apps get "$app_id"
 }
 
@@ -199,34 +231,26 @@ view_logs() {
     local log_type=${2:-DEPLOY}
     
     if [ -z "$app_id" ]; then
-        if [ -f "$SCRIPT_DIR/.do/app-id.txt" ]; then
-            app_id=$(cat "$SCRIPT_DIR/.do/app-id.txt")
+        if [ -f "$APP_ID_FILE" ]; then
+            app_id=$(cat "$APP_ID_FILE")
         else
-            print_error "App ID not provided"
-            echo "Usage: ./deploy.sh logs <app-id> [BUILD|DEPLOY|RUN]"
+            print_error "App ID not provided and not found in $APP_ID_FILE"
+            echo "Usage: ./deploy.sh logs $ENVIRONMENT [BUILD|DEPLOY|RUN]"
             exit 1
         fi
     fi
     
-    print_info "Viewing $log_type logs for app: $app_id"
+    print_info "Viewing $log_type logs for $ENV_LABEL app: $app_id"
     doctl apps logs "$app_id" --type="$log_type" --follow
 }
 
-# Function to build and deploy
-build_and_deploy() {
-    local tag="v$(date +%Y%m%d-%H%M%S)"
+# Function to update yaml tags
+update_yaml_tags() {
+    local tag=$1
     
-    print_info "Building and deploying with tag: $tag"
-    echo ""
+    print_info "Updating $APP_SPEC_FILE with tag: $tag"
     
-    # Build and push images
-    print_info "Step 1: Building and pushing Docker images..."
-    TAG="$tag" "$SCRIPT_DIR/build-and-push.sh"
-    
-    echo ""
-    print_info "Step 2: Updating app.yaml with new tag..."
-    
-    # Update all image tags in app.yaml
+    # Update all image tags in app spec file
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS
         sed -i '' "/repository: lightclick-frontend/{n; s/tag: .*/tag: $tag/;}" "$APP_SPEC_FILE"
@@ -240,16 +264,35 @@ build_and_deploy() {
     fi
     
     print_success "Updated image tags to $tag"
+}
+
+# Function to build and deploy
+build_and_deploy() {
+    # Generate environment-prefixed tag
+    local timestamp="$(date +%Y%m%d-%H%M%S)"
+    local tag="${ENVIRONMENT}-v${timestamp}"
+    
+    print_info "Building and deploying $ENV_LABEL with tag: $tag"
+    echo ""
+    
+    # Build and push images with environment-specific tag
+    print_info "Step 1: Building and pushing Docker images..."
+    TAG="$tag" "$SCRIPT_DIR/build-and-push.sh" "$ENVIRONMENT"
     
     echo ""
-    print_info "Step 3: Deploying to App Platform..."
+    print_info "Step 2: Updating app spec file..."
+    update_yaml_tags "$tag"
+    
+    echo ""
+    print_info "Step 3: Deploying to $ENV_LABEL App Platform..."
     
     # Get app ID
     local app_id
-    if [ -f "$SCRIPT_DIR/.do/app-id.txt" ]; then
-        app_id=$(cat "$SCRIPT_DIR/.do/app-id.txt")
+    if [ -f "$APP_ID_FILE" ]; then
+        app_id=$(cat "$APP_ID_FILE")
     else
-        print_error "App ID not found in .do/app-id.txt"
+        print_error "App ID not found in $APP_ID_FILE"
+        print_error "Create app first: ./deploy.sh create $ENVIRONMENT"
         exit 1
     fi
     
@@ -257,32 +300,40 @@ build_and_deploy() {
     update_app "$app_id"
     
     echo ""
-    print_success "Deployment complete! Tag: $tag"
+    print_success "$ENV_LABEL deployment complete! Tag: $tag"
+    print_info "Database migrations will run automatically on backend startup"
 }
 
 # Function to show usage
 show_usage() {
     echo "DigitalOcean App Platform Deployment Script"
     echo ""
-    echo "Usage: ./deploy.sh <command> [options]"
+    echo "Usage: ./deploy.sh <command> <environment> [options]"
+    echo ""
+    echo "Environments (required for most commands):"
+    echo "  dev                 Development environment"
+    echo "  prod                Production environment"
     echo ""
     echo "Commands:"
-    echo "  create              Create a new app from app.yaml"
-    echo "  update [app-id]     Update app spec only (no build)"
-    echo "  deploy              Build, push, and deploy all components"
-    echo "  list                List all apps"
-    echo "  info [app-id]       Get app information"
-    echo "  logs [app-id] [type] View logs (BUILD|DEPLOY|RUN)"
-    echo "  validate            Validate app.yaml without deploying"
+    echo "  create <dev|prod>         Create a new app"
+    echo "  update <dev|prod>         Update app spec only (no build)"
+    echo "  deploy <dev|prod>         Build, push, and deploy all components"
+    echo "  list                      List all apps"
+    echo "  info <dev|prod>           Get app information"
+    echo "  logs <dev|prod> [type]    View logs (BUILD|DEPLOY|RUN)"
+    echo "  validate <dev|prod>       Validate app spec without deploying"
     echo ""
     echo "Examples:"
-    echo "  ./deploy.sh create"
-    echo "  ./deploy.sh deploy              # Build and deploy"
-    echo "  ./deploy.sh update              # Update app spec only"
-    echo "  ./deploy.sh logs abc123 BUILD"
-    echo "  ./deploy.sh validate"
+    echo "  ./deploy.sh create dev          # Create dev app"
+    echo "  ./deploy.sh deploy dev          # Build and deploy to dev"
+    echo "  ./deploy.sh deploy prod         # Build and deploy to prod"
+    echo "  ./deploy.sh update prod         # Update prod app spec only"
+    echo "  ./deploy.sh logs dev BUILD      # View dev build logs"
+    echo "  ./deploy.sh validate dev        # Validate dev config"
     echo ""
-    echo "Note: App ID is automatically saved to .do/app-id.txt after creation"
+    echo "Note: App IDs are automatically saved to:"
+    echo "  - .do/app-id.txt (prod)"
+    echo "  - .do/app-id-dev.txt (dev)"
 }
 
 # Main script
@@ -304,22 +355,39 @@ main() {
     
     case "$command" in
         create)
+            set_environment "${2:-}"
             check_doctl
             check_auth
+            echo ""
+            
+            # Build images and update yaml before creating
+            local timestamp="$(date +%Y%m%d-%H%M%S)"
+            local tag="${ENVIRONMENT}-v${timestamp}"
+            
+            print_info "Step 1: Building and pushing Docker images..."
+            TAG="$tag" "$SCRIPT_DIR/build-and-push.sh" "$ENVIRONMENT"
+            
+            echo ""
+            print_info "Step 2: Updating app spec file..."
+            update_yaml_tags "$tag"
+            
+            echo ""
             check_app_spec
             validate_app_spec
             echo ""
-            create_app "${2:-}"
+            create_app
             ;;
         update)
+            set_environment "${2:-}"
             check_doctl
             check_auth
             check_app_spec
             validate_app_spec
             echo ""
-            update_app "${2:-}"
+            update_app ""
             ;;
         deploy)
+            set_environment "${2:-}"
             check_doctl
             check_auth
             check_app_spec
@@ -333,18 +401,21 @@ main() {
             list_apps
             ;;
         info)
+            set_environment "${2:-}"
             check_doctl
             check_auth
             echo ""
-            get_app_info "${2:-}"
+            get_app_info ""
             ;;
         logs)
+            set_environment "${2:-}"
             check_doctl
             check_auth
             echo ""
-            view_logs "${2:-}" "${3:-DEPLOY}"
+            view_logs "" "${3:-DEPLOY}"
             ;;
         validate)
+            set_environment "${2:-}"
             check_doctl
             check_auth
             check_app_spec

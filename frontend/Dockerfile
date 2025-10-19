@@ -9,6 +9,10 @@ CMD ["npm", "run", "dev"]
 FROM node:18-alpine as build
 WORKDIR /app
 
+# Accept API URL as build argument
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
 # Install git for version generation (optional, used if available)
 RUN apk add --no-cache git
 

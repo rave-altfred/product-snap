@@ -40,6 +40,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN chown -R appuser:appuser /app
 
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
 # Remove unnecessary files
 RUN find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 RUN find . -type f -name "*.pyc" -delete
@@ -48,8 +51,7 @@ RUN rm -rf .git .gitignore .env* tests/ *.md
 USER appuser
 EXPOSE 8000
 
-# Use production server settings
+# Use startup script that runs migrations first
 # Workers configurable via WEB_CONCURRENCY env var (defaults to 1)
 # Recommended: 1 worker per 512MB RAM (1 for 512MB, 2 for 1GB, 4 for 2GB)
-# Use shell form to enable variable expansion
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}"]
+CMD ["/app/start.sh"]
