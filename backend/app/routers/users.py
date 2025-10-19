@@ -167,34 +167,44 @@ async def delete_account(
     db: Session = Depends(get_db)
 ):
     """Delete user account and cancel active subscription."""
+    logger.info(f"Starting account deletion for user {current_user.id} ({current_user.email})")
+    
     try:
         # Check if user has active subscription
         subscription = db.query(Subscription).filter(
             Subscription.user_id == current_user.id
         ).first()
         
+        logger.info(f"User {current_user.id} subscription status: {subscription.status if subscription else 'NO_SUBSCRIPTION'}")
+        
         # Cancel PayPal subscription if active
         if subscription and subscription.status == SubscriptionStatus.ACTIVE:
             if subscription.paypal_subscription_id:
-                paypal_service = PayPalService()
-                cancelled = paypal_service.cancel_subscription(
-                    subscription.paypal_subscription_id,
-                    reason="Account deletion"
-                )
-                if cancelled:
-                    logger.info(f"Cancelled PayPal subscription {subscription.paypal_subscription_id} for user {current_user.id}")
-                else:
-                    logger.warning(f"Failed to cancel PayPal subscription {subscription.paypal_subscription_id} for user {current_user.id}")
+                logger.info(f"Attempting to cancel PayPal subscription {subscription.paypal_subscription_id}")
+                try:
+                    paypal_service = PayPalService()
+                    cancelled = paypal_service.cancel_subscription(
+                        subscription.paypal_subscription_id,
+                        reason="Account deletion"
+                    )
+                    if cancelled:
+                        logger.info(f"Cancelled PayPal subscription {subscription.paypal_subscription_id} for user {current_user.id}")
+                    else:
+                        logger.warning(f"Failed to cancel PayPal subscription {subscription.paypal_subscription_id} for user {current_user.id}")
+                except Exception as paypal_error:
+                    logger.error(f"PayPal cancellation error for user {current_user.id}: {paypal_error}", exc_info=True)
+                    # Continue with deletion even if PayPal fails
         
         # Delete user (cascade will handle related records)
+        logger.info(f"Deleting user {current_user.id} from database")
         db.delete(current_user)
         db.commit()
         
-        logger.info(f"Deleted user account: {current_user.id} ({current_user.email})")
+        logger.info(f"Successfully deleted user account: {current_user.id} ({current_user.email})")
         
         return {"message": "Account deleted successfully"}
         
     except Exception as e:
         db.rollback()
-        logger.error(f"Failed to delete account for user {current_user.id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete account")
+        logger.error(f"Failed to delete account for user {current_user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
