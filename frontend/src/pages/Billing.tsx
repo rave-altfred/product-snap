@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Check, CreditCard, Calendar, AlertCircle } from 'lucide-react'
 import { api } from '../lib/api'
 
@@ -38,9 +38,27 @@ export default function Billing() {
   const [error, setError] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
 
+  const handleCancelPending = useCallback(async () => {
+    try {
+      setError(null)
+      await api.post('/api/subscriptions/cancel-pending')
+      await fetchData()
+    } catch (err: any) {
+      setError(err.message || 'Failed to cancel pending subscription')
+    }
+  }, [])
+
   useEffect(() => {
     fetchData()
-  }, [])
+    
+    // Auto-cancel if returning from PayPal with cancel=true
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('cancel') === 'true') {
+      handleCancelPending()
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [handleCancelPending])
 
   const fetchData = async () => {
     try {
@@ -91,15 +109,6 @@ export default function Billing() {
     }
   }
 
-  const handleCancelPending = async () => {
-    try {
-      setError(null)
-      await api.post('/api/subscriptions/cancel-pending')
-      await fetchData()
-    } catch (err: any) {
-      setError(err.message || 'Failed to cancel pending subscription')
-    }
-  }
 
   const getPaidPlans = () => {
     // Filter out free plan since we show it manually

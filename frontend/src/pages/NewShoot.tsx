@@ -203,7 +203,7 @@ export default function NewShoot() {
       if (selectedMode === 'STUDIO_WHITE') {
         formData.append('shadow_option', shadowOption)
       } else if (selectedMode === 'MODEL_TRYON') {
-        formData.append('model_gender', modelGender)
+        formData.append('subject_gender', modelGender)
       } else if (selectedMode === 'LIFESTYLE_SCENE') {
         formData.append('scene_environment', sceneEnvironment)
       }

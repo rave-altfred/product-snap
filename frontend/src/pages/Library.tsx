@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, CheckCircle, XCircle, Play, Trash2, Grid, List, MoreVertical, Download, Edit2, Check, X } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, Trash2, Grid, List, MoreVertical, Download, Edit2, Check, X, Loader2, PackageCheck } from 'lucide-react'
 import { jobsApi } from '../lib/api'
 import ImageModal from '../components/ImageModal'
 
@@ -148,9 +148,9 @@ export default function Library() {
       case 'cancelled':
         return <XCircle className="text-red-500" size={20} />
       case 'processing':
-        return <Play className="text-blue-500" size={20} />
+        return <Loader2 className="text-blue-500 animate-spin" size={20} />
       default:
-        return <Clock className="text-yellow-500" size={20} />
+        return <PackageCheck className="text-gray-400" size={20} />
     }
   }
 

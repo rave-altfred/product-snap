@@ -134,7 +134,7 @@ export default function Account() {
       setError(null)
       setSuccess(null)
       
-      await api.post('/auth/resend-verification')
+      await api.post('/api/auth/resend-verification')
       setSuccess('Verification email sent! Please check your inbox.')
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to send verification email')
